@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAFMEDs Drill</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>SAFMEDs Drill</h1>
+        <p>Say All Fast a Minute Each Day Shuffled</p>
+      </header>
+
+      <section id="setup-screen" class="screen">
+        <h2>Deck Setup</h2>
+        <div class="panel">
+          <label for="file-input" class="file-label">Import .xlsx/.xls Deck</label>
+          <input id="file-input" type="file" accept=".xlsx,.xls" />
+          <p id="import-message" class="message" aria-live="polite"></p>
+        </div>
+        <div class="panel">
+          <h3>Saved Decks</h3>
+          <div id="deck-list"></div>
+        </div>
+      </section>
+
+      <section id="practice-screen" class="screen hidden" aria-live="polite">
+        <h2 id="practice-title">Practice</h2>
+        <div class="panel timer-panel">
+          <div id="timer" class="timer">60.0s</div>
+          <div id="practice-stats">Correct: 0 · Incorrect: 0 · Card 1 of 1</div>
+        </div>
+        <button id="card-face" class="card" type="button" aria-label="Flashcard"></button>
+        <div class="controls">
+          <button id="mark-correct" type="button">Correct</button>
+          <button id="mark-incorrect" type="button">Incorrect</button>
+          <button id="end-early" type="button" class="secondary">End Timing Early</button>
+          <button id="practice-back" type="button" class="secondary">Back to Decks</button>
+        </div>
+        <p class="hint">Shortcuts: Space flip · Y / → correct · N / ← incorrect</p>
+      </section>
+
+      <section id="results-screen" class="screen hidden">
+        <h2 id="results-title">Timing Results</h2>
+        <div class="panel">
+          <p id="headline-rate" class="headline"></p>
+          <p id="secondary-stats"></p>
+        </div>
+        <div class="panel">
+          <h3>Trend Chart</h3>
+          <div id="results-chart-empty" class="empty"></div>
+          <svg id="results-chart" class="chart" viewBox="0 0 700 260" role="img" aria-label="Rate trend chart"></svg>
+        </div>
+        <div class="panel">
+          <h3>History</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Correct</th>
+                  <th>Incorrect</th>
+                  <th>Correct/Min</th>
+                  <th>Incorrect/Min</th>
+                </tr>
+              </thead>
+              <tbody id="results-history"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="controls">
+          <button id="results-back" type="button" class="secondary">Back to Decks</button>
+          <button id="practice-again" type="button">Practice Again</button>
+        </div>
+      </section>
+
+      <section id="progress-screen" class="screen hidden">
+        <h2 id="progress-title">Progress</h2>
+        <div class="panel">
+          <h3>Celeration Chart</h3>
+          <div id="progress-chart-empty" class="empty"></div>
+          <svg id="progress-chart" class="chart" viewBox="0 0 700 260" role="img" aria-label="Rate trend chart"></svg>
+          <div class="legend">
+            <span><i class="dot correct"></i> Correct/min</span>
+            <span><i class="dot incorrect"></i> Incorrect/min</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>History</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Correct</th>
+                  <th>Incorrect</th>
+                  <th>Correct/Min</th>
+                  <th>Incorrect/Min</th>
+                </tr>
+              </thead>
+              <tbody id="progress-history"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="controls">
+          <button id="progress-back" type="button" class="secondary">Back to Decks</button>
+          <button id="progress-practice" type="button">Practice This Deck</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="vendor/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
