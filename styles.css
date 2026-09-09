@@ -58,6 +58,11 @@ input:focus-visible {
   outline-offset: 3px;
 }
 
+.file-input:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--accent), white 18%);
+  outline-offset: 3px;
+}
+
 .shell {
   width: min(100%, 76rem);
   margin: 0 auto;

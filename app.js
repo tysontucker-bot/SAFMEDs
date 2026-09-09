@@ -698,7 +698,7 @@ function handlePracticeKeyboard(event) {
     return;
   }
 
-  if (event.target instanceof HTMLInputElement) {
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLButtonElement) {
     return;
   }
 
