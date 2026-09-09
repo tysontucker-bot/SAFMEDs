@@ -102,25 +102,18 @@ async function handleImport(event) {
   }
 
   try {
-    if (typeof XLSX === 'undefined') {
+    if (typeof tabularjs !== 'function') {
       throw new Error('The spreadsheet parser is not available.');
     }
     if (file.size > MAX_IMPORT_SIZE_BYTES) {
       throw new Error('The spreadsheet is too large. Please use a file smaller than 5 MB.');
     }
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
-    if (!firstSheetName || !worksheet) {
+    const workbook = await tabularjs(file);
+    const worksheet = workbook?.worksheets?.[0];
+    if (!worksheet) {
       throw new Error('The spreadsheet did not contain a readable worksheet.');
     }
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      blankrows: false,
-      defval: '',
-    });
-    const cards = normalizeRows(rows);
+    const cards = normalizeRows(Array.isArray(worksheet.data) ? worksheet.data : []);
     if (!cards.length) {
       throw new Error('The file did not contain any valid term/definition rows.');
     }
