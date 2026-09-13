@@ -1,6 +1,7 @@
 const STORAGE_KEY = 'safmeds.v1';
 const HISTORY_LIMIT = 20;
 const ROUND_SECONDS = 60;
+const DEFAULT_DECK_FILES = ['ABA_SAFMEDS_Terms_Definitions.xlsx'];
 
 const state = {
   decks: loadState(),
@@ -18,6 +19,13 @@ const screens = {
 const fileInput = document.getElementById('file-input');
 const importMessage = document.getElementById('import-message');
 const deckList = document.getElementById('deck-list');
+const defaultDeckSelect = document.getElementById('default-deck-select');
+const defaultDeckForm = document.getElementById('default-deck-form');
+const loadDefaultDeckBtn = document.getElementById('load-default-deck');
+const defaultDeckMessage = document.getElementById('default-deck-message');
+const appScriptSrc = document.querySelector('script[src$="app.js"]')?.getAttribute('src') || 'app.js';
+const appBaseUrl = new URL(appScriptSrc, window.location.href);
+const appBaseDirUrl = new URL('.', appBaseUrl);
 
 const practiceTitle = document.getElementById('practice-title');
 const timerEl = document.getElementById('timer');
@@ -40,11 +48,20 @@ const progressChartEmpty = document.getElementById('progress-chart-empty');
 const progressHistory = document.getElementById('progress-history');
 
 bindEvents();
+renderDefaultDeckOptions();
 renderDecks();
 showScreen('setup');
 
 function bindEvents() {
   fileInput.addEventListener('change', onImportFile);
+  if (defaultDeckForm) {
+    defaultDeckForm.addEventListener('submit', onLoadDefaultDeck);
+  }
+  if (defaultDeckSelect) {
+    defaultDeckSelect.addEventListener('change', () => {
+      defaultDeckSelect.setAttribute('aria-invalid', 'false');
+    });
+  }
 
   cardFace.addEventListener('click', flipCard);
   markCorrectBtn.addEventListener('click', () => markAnswer(true));
@@ -64,6 +81,48 @@ function bindEvents() {
   window.addEventListener('keydown', onPracticeHotkeys);
 }
 
+function renderDefaultDeckOptions() {
+  if (!defaultDeckSelect || !loadDefaultDeckBtn) return;
+
+  for (const fileName of DEFAULT_DECK_FILES) {
+    const option = document.createElement('option');
+    option.value = fileName;
+    option.textContent = getDeckNameFromSource(fileName);
+    defaultDeckSelect.append(option);
+  }
+
+  loadDefaultDeckBtn.disabled = DEFAULT_DECK_FILES.length === 0;
+}
+
+async function onLoadDefaultDeck(event) {
+  event?.preventDefault();
+  const fileName = defaultDeckSelect?.value;
+  if (!defaultDeckSelect?.checkValidity()) {
+    defaultDeckSelect?.setAttribute('aria-invalid', 'true');
+    defaultDeckSelect?.reportValidity();
+    setMessage(defaultDeckMessage, 'Please select a default deck before loading.', 'error');
+    return;
+  }
+  defaultDeckSelect?.setAttribute('aria-invalid', 'false');
+
+  setMessage(defaultDeckMessage, '');
+  loadDefaultDeckBtn.disabled = true;
+  try {
+    const fileUrl = new URL(fileName, appBaseDirUrl).toString();
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error(`Could not load ${fileName}.`);
+    }
+    const fileData = await response.arrayBuffer();
+    const { deckName, cardCount } = importDeckFromArrayBuffer(fileData, fileName);
+    setMessage(defaultDeckMessage, `Saved "${deckName}" with ${cardCount} cards.`, 'success');
+  } catch (error) {
+    setMessage(defaultDeckMessage, `Default deck load failed: ${error.message || 'Unable to read spreadsheet.'}`, 'error');
+  } finally {
+    loadDefaultDeckBtn.disabled = DEFAULT_DECK_FILES.length === 0;
+  }
+}
+
 function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
@@ -81,37 +140,60 @@ function onImportFile(event) {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  setMessage('');
+  setMessage(importMessage, '');
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      const workbook = XLSX.read(reader.result, { type: 'array' });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      if (!firstSheet) throw new Error('No worksheets found in file.');
-
-      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: '' });
-      const cards = parseCards(rows);
-      if (!cards.length) throw new Error('No valid term/definition rows were found.');
-
-      const deckName = file.name.replace(/\.[^.]+$/, '') || 'Imported Deck';
-      const previousHistory = state.decks[deckName]?.history || [];
-      state.decks[deckName] = { name: deckName, cards, history: previousHistory };
-      saveState();
-      renderDecks();
-      setMessage(`Saved "${deckName}" with ${cards.length} cards.`, 'success');
+      const { deckName, cardCount } = importDeckFromArrayBuffer(reader.result, file.name);
+      setMessage(importMessage, `Saved "${deckName}" with ${cardCount} cards.`, 'success');
     } catch (error) {
-      setMessage(`Import failed: ${error.message || 'Unable to read spreadsheet.'}`, 'error');
+      setMessage(importMessage, `Import failed: ${error.message || 'Unable to read spreadsheet.'}`, 'error');
     } finally {
       fileInput.value = '';
     }
   };
 
   reader.onerror = () => {
-    setMessage('Import failed: file could not be read.', 'error');
+    setMessage(importMessage, 'Import failed: file could not be read.', 'error');
     fileInput.value = '';
   };
 
   reader.readAsArrayBuffer(file);
+}
+
+function importDeckFromArrayBuffer(fileData, sourceName) {
+  const workbook = XLSX.read(fileData, { type: 'array' });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!firstSheet) throw new Error('No worksheets found in file.');
+
+  const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: '' });
+  const cards = parseCards(rows);
+  if (!cards.length) throw new Error('No valid term/definition rows were found.');
+
+  const deckName = getDeckNameFromSource(sourceName);
+  const signature = getDeckSignature(cards);
+  const previousDeck = state.decks[deckName];
+  const previousHistory = previousDeck?.signature === signature ? previousDeck.history || [] : [];
+  state.decks[deckName] = { name: deckName, cards, history: previousHistory, signature };
+  saveState();
+  renderDecks();
+  return { deckName, cardCount: cards.length };
+}
+
+function getDeckNameFromSource(sourceName) {
+  const sourceBaseName = String(sourceName || '').split(/[\\/]/).pop() || '';
+  return sourceBaseName.replace(/\.[^.]+$/, '') || 'Imported Deck';
+}
+
+function getDeckSignature(cards) {
+  let hash = 0;
+  for (const card of cards) {
+    const text = `${card.term}\u0000${card.definition}\u0001`;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    }
+  }
+  return `${cards.length}:${hash}`;
 }
 
 function parseCards(rows) {
@@ -134,9 +216,10 @@ function parseCards(rows) {
   return cards;
 }
 
-function setMessage(text, type = '') {
-  importMessage.textContent = text;
-  importMessage.className = `message ${type}`.trim();
+function setMessage(target, text, type = '') {
+  if (!target) return;
+  target.textContent = text;
+  target.className = `message ${type}`.trim();
 }
 
 function renderDecks() {
