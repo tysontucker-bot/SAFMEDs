@@ -21,6 +21,8 @@ const importMessage = document.getElementById('import-message');
 const deckList = document.getElementById('deck-list');
 const defaultDeckSelect = document.getElementById('default-deck-select');
 const loadDefaultDeckBtn = document.getElementById('load-default-deck');
+const appScriptSrc = document.querySelector('script[src$="app.js"]')?.getAttribute('src') || 'app.js';
+const appBaseUrl = new URL(appScriptSrc, window.location.href);
 
 const practiceTitle = document.getElementById('practice-title');
 const timerEl = document.getElementById('timer');
@@ -52,6 +54,11 @@ function bindEvents() {
   if (loadDefaultDeckBtn) {
     loadDefaultDeckBtn.addEventListener('click', onLoadDefaultDeck);
   }
+  if (defaultDeckSelect) {
+    defaultDeckSelect.addEventListener('change', () => {
+      loadDefaultDeckBtn.disabled = !defaultDeckSelect.value;
+    });
+  }
 
   cardFace.addEventListener('click', flipCard);
   markCorrectBtn.addEventListener('click', () => markAnswer(true));
@@ -74,7 +81,6 @@ function bindEvents() {
 function renderDefaultDeckOptions() {
   if (!defaultDeckSelect || !loadDefaultDeckBtn) return;
 
-  defaultDeckSelect.innerHTML = '';
   for (const fileName of DEFAULT_DECK_FILES) {
     const option = document.createElement('option');
     option.value = fileName;
@@ -82,7 +88,7 @@ function renderDefaultDeckOptions() {
     defaultDeckSelect.append(option);
   }
 
-  loadDefaultDeckBtn.disabled = DEFAULT_DECK_FILES.length === 0;
+  loadDefaultDeckBtn.disabled = DEFAULT_DECK_FILES.length === 0 || !defaultDeckSelect.value;
 }
 
 async function onLoadDefaultDeck() {
@@ -92,7 +98,7 @@ async function onLoadDefaultDeck() {
   setMessage('');
   loadDefaultDeckBtn.disabled = true;
   try {
-    const response = await fetch(encodeURI(fileName));
+    const response = await fetch(new URL(encodeURI(fileName), appBaseUrl));
     if (!response.ok) {
       throw new Error(`Could not load ${fileName}.`);
     }
