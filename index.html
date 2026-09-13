@@ -22,13 +22,14 @@
         </div>
         <div class="panel">
           <h3>Default Decks</h3>
-          <label for="default-deck-select">Select included spreadsheet</label>
-          <select id="default-deck-select">
+          <label for="default-deck-select">Select included spreadsheet (required)</label>
+          <select id="default-deck-select" required aria-describedby="default-deck-message">
             <option value="" selected disabled>Select a deck</option>
           </select>
           <div class="controls">
             <button id="load-default-deck" type="button">Load Selected Deck</button>
           </div>
+          <p id="default-deck-message" class="message" aria-live="polite"></p>
         </div>
         <div class="panel">
           <h3>Saved Decks</h3>
