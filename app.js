@@ -20,6 +20,7 @@ const fileInput = document.getElementById('file-input');
 const importMessage = document.getElementById('import-message');
 const deckList = document.getElementById('deck-list');
 const defaultDeckSelect = document.getElementById('default-deck-select');
+const defaultDeckForm = document.getElementById('default-deck-form');
 const loadDefaultDeckBtn = document.getElementById('load-default-deck');
 const defaultDeckMessage = document.getElementById('default-deck-message');
 const appScriptSrc = document.querySelector('script[src$="app.js"]')?.getAttribute('src') || 'app.js';
@@ -53,12 +54,12 @@ showScreen('setup');
 
 function bindEvents() {
   fileInput.addEventListener('change', onImportFile);
-  if (loadDefaultDeckBtn) {
-    loadDefaultDeckBtn.addEventListener('click', onLoadDefaultDeck);
+  if (defaultDeckForm) {
+    defaultDeckForm.addEventListener('submit', onLoadDefaultDeck);
   }
   if (defaultDeckSelect) {
     defaultDeckSelect.addEventListener('change', () => {
-      loadDefaultDeckBtn.disabled = !defaultDeckSelect.value;
+      defaultDeckSelect.setAttribute('aria-invalid', 'false');
     });
   }
 
@@ -90,17 +91,25 @@ function renderDefaultDeckOptions() {
     defaultDeckSelect.append(option);
   }
 
-  loadDefaultDeckBtn.disabled = DEFAULT_DECK_FILES.length === 0 || !defaultDeckSelect.value;
+  loadDefaultDeckBtn.disabled = DEFAULT_DECK_FILES.length === 0;
 }
 
-async function onLoadDefaultDeck() {
+async function onLoadDefaultDeck(event) {
+  event?.preventDefault();
   const fileName = defaultDeckSelect?.value;
-  if (!fileName) return;
+  if (!defaultDeckSelect?.checkValidity()) {
+    defaultDeckSelect?.setAttribute('aria-invalid', 'true');
+    defaultDeckSelect?.reportValidity();
+    setMessage(defaultDeckMessage, 'Please select a default deck before loading.', 'error');
+    return;
+  }
+  defaultDeckSelect?.setAttribute('aria-invalid', 'false');
 
   setMessage(defaultDeckMessage, '');
   loadDefaultDeckBtn.disabled = true;
   try {
-    const response = await fetch(new URL(fileName, appBaseDirUrl));
+    const fileUrl = new URL(fileName, appBaseDirUrl).toString();
+    const response = await fetch(fileUrl);
     if (!response.ok) {
       throw new Error(`Could not load ${fileName}.`);
     }
@@ -110,7 +119,7 @@ async function onLoadDefaultDeck() {
   } catch (error) {
     setMessage(defaultDeckMessage, `Default deck load failed: ${error.message || 'Unable to read spreadsheet.'}`, 'error');
   } finally {
-    loadDefaultDeckBtn.disabled = !defaultDeckSelect?.value;
+    loadDefaultDeckBtn.disabled = DEFAULT_DECK_FILES.length === 0;
   }
 }
 
@@ -162,8 +171,10 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
   if (!cards.length) throw new Error('No valid term/definition rows were found.');
 
   const deckName = getDeckNameFromSource(sourceName);
-  const previousHistory = state.decks[deckName]?.history || [];
-  state.decks[deckName] = { name: deckName, cards, history: previousHistory };
+  const signature = getDeckSignature(cards);
+  const previousDeck = state.decks[deckName];
+  const previousHistory = previousDeck?.signature === signature ? previousDeck.history || [] : [];
+  state.decks[deckName] = { name: deckName, cards, history: previousHistory, signature };
   saveState();
   renderDecks();
   return { deckName, cardCount: cards.length };
@@ -172,6 +183,17 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
 function getDeckNameFromSource(sourceName) {
   const sourceBaseName = String(sourceName || '').split(/[\\/]/).pop() || '';
   return sourceBaseName.replace(/\.[^.]+$/, '') || 'Imported Deck';
+}
+
+function getDeckSignature(cards) {
+  let hash = 0;
+  for (const card of cards) {
+    const text = `${card.term}\u0000${card.definition}\u0001`;
+    for (let i = 0; i < text.length; i += 1) {
+      hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+    }
+  }
+  return `${cards.length}:${hash}`;
 }
 
 function parseCards(rows) {
