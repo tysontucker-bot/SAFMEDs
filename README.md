@@ -18,6 +18,6 @@ Open `index.html` in a browser. No build step required.
 
 ## Spreadsheets
 
-- Store workbook files in `/home/runner/work/SAFMEDs/SAFMEDs/spreadsheets`
+- Store workbook files in `spreadsheets/`
 - The app currently loads `spreadsheets/SAFMEDs 1.xlsx`
-- To add more bundled spreadsheets later, place them in `spreadsheets/` and add their relative paths to `DEFAULT_DECK_FILES` in `/home/runner/work/SAFMEDs/SAFMEDs/app.js`
+- To add more bundled spreadsheets later, place them in `spreadsheets/` and add their relative paths to `DEFAULT_DECK_FILES` in `app.js`
