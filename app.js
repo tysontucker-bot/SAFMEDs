@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'safmeds.v1';
 const HISTORY_LIMIT = 20;
 const ROUND_SECONDS = 60;
-const DEFAULT_DECK_FILES = ['ABA_SAFMEDS_Terms_Definitions.xlsx'];
+const DEFAULT_DECK_FILES = ['spreadsheets/SAFMEDs 1.xlsx'];
 
 const state = {
   decks: loadState(),
@@ -16,8 +16,6 @@ const screens = {
   progress: document.getElementById('progress-screen'),
 };
 
-const fileInput = document.getElementById('file-input');
-const importMessage = document.getElementById('import-message');
 const deckList = document.getElementById('deck-list');
 const defaultDeckSelect = document.getElementById('default-deck-select');
 const defaultDeckForm = document.getElementById('default-deck-form');
@@ -53,7 +51,6 @@ renderDecks();
 showScreen('setup');
 
 function bindEvents() {
-  fileInput.addEventListener('change', onImportFile);
   if (defaultDeckForm) {
     defaultDeckForm.addEventListener('submit', onLoadDefaultDeck);
   }
@@ -136,31 +133,6 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.decks));
 }
 
-function onImportFile(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
-
-  setMessage(importMessage, '');
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const { deckName, cardCount } = importDeckFromArrayBuffer(reader.result, file.name);
-      setMessage(importMessage, `Saved "${deckName}" with ${cardCount} cards.`, 'success');
-    } catch (error) {
-      setMessage(importMessage, `Import failed: ${error.message || 'Unable to read spreadsheet.'}`, 'error');
-    } finally {
-      fileInput.value = '';
-    }
-  };
-
-  reader.onerror = () => {
-    setMessage(importMessage, 'Import failed: file could not be read.', 'error');
-    fileInput.value = '';
-  };
-
-  reader.readAsArrayBuffer(file);
-}
-
 function importDeckFromArrayBuffer(fileData, sourceName) {
   const workbook = XLSX.read(fileData, { type: 'array' });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -225,7 +197,7 @@ function setMessage(target, text, type = '') {
 function renderDecks() {
   const names = Object.keys(state.decks).sort((a, b) => a.localeCompare(b));
   if (!names.length) {
-    deckList.innerHTML = '<p class="empty">No decks yet. Import a spreadsheet to begin.</p>';
+    deckList.innerHTML = '<p class="empty">No decks yet. Load a spreadsheet to begin.</p>';
     return;
   }
 
