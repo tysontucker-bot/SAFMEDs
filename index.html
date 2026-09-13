@@ -16,18 +16,13 @@
       <section id="setup-screen" class="screen">
         <h2>Deck Setup</h2>
         <div class="panel">
-          <label for="file-input" class="file-label">Import .xlsx/.xls Deck</label>
-          <input id="file-input" type="file" accept=".xlsx,.xls" />
-          <p id="import-message" class="message" aria-live="polite"></p>
-        </div>
-        <div class="panel">
-          <h3>Default Decks</h3>
-          <label for="default-deck-select">Select included spreadsheet (required)</label>
+          <h3>Included Spreadsheets</h3>
+          <label for="default-deck-select">Select spreadsheet to load (required)</label>
           <select id="default-deck-select" required aria-describedby="default-deck-message">
-            <option value="" selected disabled>Select a deck</option>
+            <option value="" selected disabled>Select a spreadsheet</option>
           </select>
           <form id="default-deck-form" class="controls">
-            <button id="load-default-deck" type="submit">Load Selected Deck</button>
+            <button id="load-default-deck" type="submit">Load Spreadsheet</button>
           </form>
           <p id="default-deck-message" class="message" aria-live="polite"></p>
         </div>
