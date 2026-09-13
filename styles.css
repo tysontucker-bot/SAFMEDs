@@ -98,6 +98,14 @@ button.secondary {
   color: var(--text);
 }
 
+#mark-correct {
+  background: var(--correct);
+}
+
+#mark-incorrect {
+  background: var(--incorrect);
+}
+
 button.delete {
   background: transparent;
   border-color: var(--incorrect);
