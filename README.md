@@ -1,14 +1,17 @@
 # SAFMEDs
 
-A fully client-side SAFMEDs flashcard drill app for importing spreadsheet decks, running timed practice rounds, and tracking correct/incorrect rates over time.
-
-## Run locally
-
-Open `index.html` in a browser, or serve the repository as static files.
+A fully client-side SAFMEDs flashcard drill app.
 
 ## Features
 
-- Import `.xlsx` or `.xls` spreadsheets with a bundled local parser
-- Save decks and recent timing history in browser local storage
-- Run 60-second shuffled timings with keyboard shortcuts
-- Review per-deck results, history, and progress trends
+- Import `.xlsx` / `.xls` decks with `Term` and `Definition` columns
+- Practice in shuffled 60-second timings with keyboard shortcuts
+- Mark cards correct/incorrect and track per-minute rates
+- Automatic results history (most recent 20 timings per deck)
+- Progress chart with correct/min and incorrect/min trend lines
+- Local-only storage via `localStorage` (no backend)
+- Light/dark mode and responsive layout
+
+## Run
+
+Open `index.html` in a browser. No build step required.
