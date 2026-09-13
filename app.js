@@ -85,7 +85,7 @@ function renderDefaultDeckOptions() {
   for (const fileName of DEFAULT_DECK_FILES) {
     const option = document.createElement('option');
     option.value = fileName;
-    option.textContent = fileName;
+    option.textContent = getDeckNameFromSource(fileName);
     defaultDeckSelect.append(option);
   }
 
@@ -108,7 +108,7 @@ async function onLoadDefaultDeck() {
   } catch (error) {
     setMessage(`Default deck load failed: ${error.message || 'Unable to read spreadsheet.'}`, 'error');
   } finally {
-    loadDefaultDeckBtn.disabled = false;
+    loadDefaultDeckBtn.disabled = !defaultDeckSelect?.value;
   }
 }
 
@@ -158,13 +158,17 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
   const cards = parseCards(rows);
   if (!cards.length) throw new Error('No valid term/definition rows were found.');
 
-  const sourceBaseName = String(sourceName || '').split(/[\\/]/).pop();
-  const deckName = sourceBaseName?.replace(/\.[^.]+$/, '') || 'Imported Deck';
+  const deckName = getDeckNameFromSource(sourceName);
   const previousHistory = state.decks[deckName]?.history || [];
   state.decks[deckName] = { name: deckName, cards, history: previousHistory };
   saveState();
   renderDecks();
   setMessage(`Saved "${deckName}" with ${cards.length} cards.`, 'success');
+}
+
+function getDeckNameFromSource(sourceName) {
+  const sourceBaseName = String(sourceName || '').split(/[\\/]/).pop() || '';
+  return sourceBaseName.replace(/\.[^.]+$/, '') || 'Imported Deck';
 }
 
 function parseCards(rows) {
