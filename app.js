@@ -23,6 +23,7 @@ const defaultDeckSelect = document.getElementById('default-deck-select');
 const loadDefaultDeckBtn = document.getElementById('load-default-deck');
 const appScriptSrc = document.querySelector('script[src$="app.js"]')?.getAttribute('src') || 'app.js';
 const appBaseUrl = new URL(appScriptSrc, window.location.href);
+const appBaseDirUrl = new URL('.', appBaseUrl);
 
 const practiceTitle = document.getElementById('practice-title');
 const timerEl = document.getElementById('timer');
@@ -98,7 +99,7 @@ async function onLoadDefaultDeck() {
   setMessage('');
   loadDefaultDeckBtn.disabled = true;
   try {
-    const response = await fetch(new URL(encodeURI(fileName), appBaseUrl));
+    const response = await fetch(new URL(fileName, appBaseDirUrl));
     if (!response.ok) {
       throw new Error(`Could not load ${fileName}.`);
     }
@@ -157,7 +158,7 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
   const cards = parseCards(rows);
   if (!cards.length) throw new Error('No valid term/definition rows were found.');
 
-  const sourceBaseName = String(sourceName || '').split('/').pop();
+  const sourceBaseName = String(sourceName || '').split(/[\\/]/).pop();
   const deckName = sourceBaseName?.replace(/\.[^.]+$/, '') || 'Imported Deck';
   const previousHistory = state.decks[deckName]?.history || [];
   state.decks[deckName] = { name: deckName, cards, history: previousHistory };
