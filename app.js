@@ -257,7 +257,7 @@ function startPractice(deckName) {
   if (state.practice?.timerId) clearInterval(state.practice.timerId);
 
   state.currentDeckName = deckName;
-  const round = shuffle([...deck.cards]);
+  const round = shuffleDeck(deck.cards);
   state.practice = {
     round,
     index: 0,
@@ -331,6 +331,7 @@ function flipCard() {
 
 function markAnswer(isCorrect) {
   if (!state.practice || state.practice.finished) return;
+  const currentCard = getCurrentCard();
   if (isCorrect) state.practice.correct += 1;
   else state.practice.incorrect += 1;
 
@@ -339,7 +340,7 @@ function markAnswer(isCorrect) {
   state.practice.showingDefinition = false;
 
   if (state.practice.index >= state.practice.round.length) {
-    state.practice.round = shuffle([...state.decks[state.currentDeckName].cards]);
+    state.practice.round = shuffleDeck(state.decks[state.currentDeckName].cards, currentCard);
     state.practice.index = 0;
   }
 
@@ -569,6 +570,19 @@ function shuffle(items) {
     [items[i], items[j]] = [items[j], items[i]];
   }
   return items;
+}
+
+function shuffleDeck(cards, previousCard = null) {
+  const shuffled = shuffle([...cards]);
+  if (shuffled.length <= 1 || !previousCard) return shuffled;
+
+  if (shuffled[0] === previousCard) {
+    const randomIndex = 1 + Math.floor(Math.random() * (shuffled.length - 1));
+    const [firstCard] = shuffled.splice(0, 1);
+    shuffled.splice(randomIndex, 0, firstCard);
+  }
+
+  return shuffled;
 }
 
 function niceCeil(value) {
