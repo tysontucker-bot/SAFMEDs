@@ -7,11 +7,13 @@ const state = {
   decks: loadState(),
   currentDeckName: null,
   practice: null,
+  preview: null,
 };
 
 const screens = {
   setup: document.getElementById('setup-screen'),
   practice: document.getElementById('practice-screen'),
+  preview: document.getElementById('preview-screen'),
   results: document.getElementById('results-screen'),
   progress: document.getElementById('progress-screen'),
 };
@@ -32,6 +34,10 @@ const cardFace = document.getElementById('card-face');
 const markCorrectBtn = document.getElementById('mark-correct');
 const markIncorrectBtn = document.getElementById('mark-incorrect');
 const endEarlyBtn = document.getElementById('end-early');
+
+const previewTitle = document.getElementById('preview-title');
+const previewStats = document.getElementById('preview-stats');
+const previewCardFace = document.getElementById('preview-card-face');
 
 const resultsTitle = document.getElementById('results-title');
 const headlineRate = document.getElementById('headline-rate');
@@ -65,17 +71,28 @@ function bindEvents() {
   markIncorrectBtn.addEventListener('click', () => markAnswer(false));
   endEarlyBtn.addEventListener('click', () => finishPractice(true));
 
+  previewCardFace.addEventListener('click', flipPreviewCard);
+  document.getElementById('preview-previous').addEventListener('click', () => changePreviewCard(-1));
+  document.getElementById('preview-next').addEventListener('click', () => changePreviewCard(1));
+  document.getElementById('preview-start-practice').addEventListener('click', () => {
+    if (state.currentDeckName) startPractice(state.currentDeckName);
+  });
+  document.getElementById('preview-back').addEventListener('click', closePreview);
   document.getElementById('practice-back').addEventListener('click', cancelPractice);
   document.getElementById('results-back').addEventListener('click', () => showScreen('setup'));
   document.getElementById('practice-again').addEventListener('click', () => {
     if (state.currentDeckName) startPractice(state.currentDeckName);
   });
   document.getElementById('progress-back').addEventListener('click', () => showScreen('setup'));
+  document.getElementById('progress-preview').addEventListener('click', () => {
+    if (state.currentDeckName) openPreview(state.currentDeckName, 'progress');
+  });
   document.getElementById('progress-practice').addEventListener('click', () => {
     if (state.currentDeckName) startPractice(state.currentDeckName);
   });
 
   window.addEventListener('keydown', onPracticeHotkeys);
+  window.addEventListener('keydown', onPreviewHotkeys);
 }
 
 function renderDefaultDeckOptions() {
@@ -214,11 +231,12 @@ function renderDecks() {
     const actions = document.createElement('div');
     actions.className = 'controls';
 
+    const previewBtn = createButton('Preview', () => openPreview(name));
     const progressBtn = createButton('Progress', () => openProgress(name));
     const practiceBtn = createButton('Practice', () => startPractice(name));
     const deleteBtn = createButton('Delete', () => deleteDeck(name), 'delete');
 
-    actions.append(progressBtn, practiceBtn, deleteBtn);
+    actions.append(previewBtn, progressBtn, practiceBtn, deleteBtn);
     row.append(meta, actions);
     deckList.append(row);
   }
@@ -250,11 +268,29 @@ function openProgress(deckName) {
   showScreen('progress');
 }
 
+function openPreview(deckName, returnScreen = 'setup') {
+  const deck = state.decks[deckName];
+  if (!deck || !deck.cards.length) return;
+
+  state.currentDeckName = deckName;
+  state.preview = {
+    index: 0,
+    showingDefinition: false,
+    returnScreen,
+  };
+
+  previewTitle.textContent = `Preview: ${deckName}`;
+  updatePreviewCard();
+  updatePreviewStats();
+  showScreen('preview');
+}
+
 function startPractice(deckName) {
   const deck = state.decks[deckName];
   if (!deck || !deck.cards.length) return;
 
   if (state.practice?.timerId) clearInterval(state.practice.timerId);
+  state.preview = null;
 
   state.currentDeckName = deckName;
   const round = shuffleDeck(deck.cards);
@@ -319,15 +355,69 @@ function updateCardFace() {
   cardFace.innerHTML = formatCardText(faceText);
 }
 
+function updatePreviewCard() {
+  const currentCard = getCurrentPreviewCard();
+  if (!currentCard) {
+    previewCardFace.textContent = 'No card';
+    return;
+  }
+  const faceText = state.preview.showingDefinition ? currentCard.definition : currentCard.term;
+  previewCardFace.innerHTML = formatCardText(faceText);
+}
+
 function getCurrentCard() {
   if (!state.practice?.round.length) return null;
   return state.practice.round[state.practice.index];
+}
+
+function getCurrentPreviewCard() {
+  const deck = state.decks[state.currentDeckName];
+  if (!state.preview || !deck?.cards.length) return null;
+  return deck.cards[state.preview.index];
 }
 
 function flipCard() {
   if (!state.practice || state.practice.finished) return;
   state.practice.showingDefinition = !state.practice.showingDefinition;
   updateCardFace();
+}
+
+function flipPreviewCard() {
+  if (!state.preview) return;
+  state.preview.showingDefinition = !state.preview.showingDefinition;
+  updatePreviewCard();
+  updatePreviewStats();
+}
+
+function changePreviewCard(direction) {
+  const deck = state.decks[state.currentDeckName];
+  if (!state.preview || !deck?.cards.length) return;
+  const total = deck.cards.length;
+  state.preview.index = (state.preview.index + direction + total) % total;
+  state.preview.showingDefinition = false;
+  updatePreviewCard();
+  updatePreviewStats();
+}
+
+function updatePreviewStats() {
+  const deck = state.decks[state.currentDeckName];
+  if (!state.preview || !deck?.cards.length) {
+    previewStats.textContent = 'No card';
+    return;
+  }
+  const cardNum = state.preview.index + 1;
+  const faceLabel = state.preview.showingDefinition ? 'Definition' : 'Term';
+  previewStats.textContent = `Card ${cardNum} of ${deck.cards.length} · ${faceLabel}`;
+}
+
+function closePreview() {
+  if (!state.preview) {
+    showScreen('setup');
+    return;
+  }
+  const { returnScreen } = state.preview;
+  state.preview = null;
+  showScreen(returnScreen || 'setup');
 }
 
 function markAnswer(isCorrect) {
@@ -562,6 +652,36 @@ function onPracticeHotkeys(event) {
   if (key === 'ArrowLeft' || key.toLowerCase() === 'n') {
     event.preventDefault();
     markAnswer(false);
+  }
+}
+
+function onPreviewHotkeys(event) {
+  if (screens.preview.classList.contains('hidden') || !state.preview) return;
+
+  const key = event.key;
+  const code = event.code;
+
+  if (code === 'Space') {
+    event.preventDefault();
+    flipPreviewCard();
+    return;
+  }
+
+  if (key === 'ArrowRight' || key.toLowerCase() === 'n') {
+    event.preventDefault();
+    changePreviewCard(1);
+    return;
+  }
+
+  if (key === 'ArrowLeft' || key.toLowerCase() === 'p') {
+    event.preventDefault();
+    changePreviewCard(-1);
+    return;
+  }
+
+  if (code === 'Enter' || code === 'NumpadEnter') {
+    event.preventDefault();
+    if (state.currentDeckName) startPractice(state.currentDeckName);
   }
 }
 

@@ -145,6 +145,12 @@ input:focus-visible,
   gap: 0.5rem;
 }
 
+.preview-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .timer { font-size: 2rem; font-weight: 700; }
 .timer.urgent { color: var(--incorrect); }
 
