@@ -48,6 +48,21 @@
         <p class="hint">Shortcuts: Space flip · Y / → correct · N / ← incorrect</p>
       </section>
 
+      <section id="preview-screen" class="screen hidden">
+        <h2 id="preview-title">Preview</h2>
+        <div class="panel preview-panel">
+          <div id="preview-stats" aria-live="polite">Card 1 of 1 · Term</div>
+        </div>
+        <button id="preview-card-face" class="card" type="button" aria-label="Preview flashcard"></button>
+        <div class="controls">
+          <button id="preview-previous" type="button" class="secondary">Previous</button>
+          <button id="preview-next" type="button" class="secondary">Next</button>
+          <button id="preview-start-practice" type="button">Start Timed Run</button>
+          <button id="preview-back" type="button" class="secondary">Back</button>
+        </div>
+        <p class="hint">Review highlighted cards before starting the timer. Shortcuts: Space flip · N / → next · P / ← previous · Enter start timed run</p>
+      </section>
+
       <section id="results-screen" class="screen hidden">
         <h2 id="results-title">Timing Results</h2>
         <div class="panel">
@@ -116,6 +131,7 @@
         </div>
         <div class="controls">
           <button id="progress-back" type="button" class="secondary">Back to Decks</button>
+          <button id="progress-preview" type="button" class="secondary">Preview This Deck</button>
           <button id="progress-practice" type="button">Practice This Deck</button>
         </div>
       </section>

@@ -6,6 +6,7 @@ A fully client-side SAFMEDs flashcard drill app.
 
 - Load bundled `.xlsx` / `.xls` decks with `Term` and `Definition` columns
 - Practice in shuffled 60-second timings with keyboard shortcuts
+- Preview cards before starting a timed run
 - Mark cards correct/incorrect and track per-minute rates
 - Automatic results history (most recent 20 timings per deck)
 - Progress chart with correct/min and incorrect/min trend lines
@@ -22,4 +23,4 @@ Open `index.html` in a browser. No build step required.
 - Store workbook files in `spreadsheets/`
 - The app currently loads `spreadsheets/SAFMEDs 1.xlsx`
 - To add more bundled spreadsheets later, place them in `spreadsheets/` and add their relative paths to `DEFAULT_DECK_FILES` in `app.js`
-- In Term/Definition cells, wrap words in `==double equals==` to highlight them during practice
+- In Term/Definition cells, wrap words in `==double equals==` to highlight them during preview and practice
