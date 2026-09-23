@@ -422,6 +422,10 @@ function closePreview() {
   }
   const { returnScreen } = state.preview;
   state.preview = null;
+  if (returnScreen === 'progress' && state.currentDeckName) {
+    openProgress(state.currentDeckName);
+    return;
+  }
   showScreen(returnScreen || 'setup');
 }
 
