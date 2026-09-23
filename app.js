@@ -315,7 +315,8 @@ function updateCardFace() {
     cardFace.textContent = 'No card';
     return;
   }
-  cardFace.textContent = state.practice.showingDefinition ? currentCard.definition : currentCard.term;
+  const faceText = state.practice.showingDefinition ? currentCard.definition : currentCard.term;
+  cardFace.innerHTML = formatCardText(faceText);
 }
 
 function getCurrentCard() {
@@ -600,4 +601,21 @@ function escapeHtml(text) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function formatCardText(text) {
+  const rawText = String(text ?? '');
+  let rendered = '';
+  let lastIndex = 0;
+  const highlightPattern = /==(.*?)==/g;
+  let match;
+
+  while ((match = highlightPattern.exec(rawText)) !== null) {
+    rendered += escapeHtml(rawText.slice(lastIndex, match.index));
+    rendered += `<mark>${escapeHtml(match[1])}</mark>`;
+    lastIndex = match.index + match[0].length;
+  }
+
+  rendered += escapeHtml(rawText.slice(lastIndex));
+  return rendered;
 }

@@ -129,6 +129,13 @@ input:focus-visible,
   font-weight: 600;
 }
 
+.card mark {
+  background: color-mix(in srgb, var(--focus), transparent 55%);
+  color: inherit;
+  border-radius: 0.2rem;
+  padding: 0 0.08em;
+}
+
 .timer-panel {
   display: flex;
   flex-wrap: wrap;
