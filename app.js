@@ -358,6 +358,7 @@ function updateCardFace() {
 function updatePreviewCard() {
   const currentCard = getCurrentPreviewCard();
   if (!currentCard) {
+    previewCardFace.innerHTML = '';
     previewCardFace.textContent = 'No card';
     return;
   }
