@@ -223,6 +223,10 @@ function renderDecks() {
     const deck = state.decks[name];
     const row = document.createElement('div');
     row.className = 'deck-row';
+    if (name === state.currentDeckName) {
+      row.classList.add('selected');
+      row.setAttribute('aria-current', 'true');
+    }
 
     const meta = document.createElement('div');
     meta.className = 'deck-meta';
@@ -627,6 +631,7 @@ function ratePerMinute(count, elapsedSeconds) {
 }
 
 function showScreen(name) {
+  if (name === 'setup') renderDecks();
   Object.entries(screens).forEach(([screenName, el]) => {
     el.classList.toggle('hidden', screenName !== name);
   });
