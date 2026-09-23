@@ -607,7 +607,7 @@ function formatCardText(text) {
   const rawText = String(text ?? '');
   let rendered = '';
   let lastIndex = 0;
-  const highlightPattern = /==(.*?)==/g;
+  const highlightPattern = /==([\s\S]*?)==/g;
   let match;
 
   while ((match = highlightPattern.exec(rawText)) !== null) {
