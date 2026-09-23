@@ -9,6 +9,7 @@
   --correct: #1f9d55;
   --incorrect: #d64545;
   --focus: #ff9800;
+  --highlight-bg: #ffe08a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,6 +23,7 @@
     --correct: #54d68a;
     --incorrect: #ff7b7b;
     --focus: #ffd166;
+    --highlight-bg: #7a5a00;
   }
 }
 
@@ -127,6 +129,13 @@ input:focus-visible,
   color: var(--text);
   font-size: 1.4rem;
   font-weight: 600;
+}
+
+.card mark {
+  background: var(--highlight-bg);
+  color: inherit;
+  border-radius: 0.2rem;
+  padding: 0 0.08em;
 }
 
 .timer-panel {

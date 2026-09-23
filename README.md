@@ -10,6 +10,7 @@ A fully client-side SAFMEDs flashcard drill app.
 - Automatic results history (most recent 20 timings per deck)
 - Progress chart with correct/min and incorrect/min trend lines
 - Local-only storage via `localStorage` (no backend)
+- Highlight text on cards with `==highlighted text==`
 - Light/dark mode and responsive layout
 
 ## Run
@@ -21,3 +22,4 @@ Open `index.html` in a browser. No build step required.
 - Store workbook files in `spreadsheets/`
 - The app currently loads `spreadsheets/SAFMEDs 1.xlsx`
 - To add more bundled spreadsheets later, place them in `spreadsheets/` and add their relative paths to `DEFAULT_DECK_FILES` in `app.js`
+- In Term/Definition cells, wrap words in `==double equals==` to highlight them during practice
