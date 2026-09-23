@@ -417,6 +417,7 @@ function closePreview() {
   }
   const { returnScreen } = state.preview;
   state.preview = null;
+  if (returnScreen === 'setup') state.currentDeckName = null;
   showScreen(returnScreen || 'setup');
 }
 
