@@ -607,12 +607,13 @@ function formatCardText(text) {
   const rawText = String(text ?? '');
   let rendered = '';
   let lastIndex = 0;
-  const highlightPattern = /==(\S(?:[\s\S]*?\S)?)==/g;
+  const highlightPattern = /(^|[^\w])==(\S(?:[\s\S]*?\S)?)==(?=$|[^\w])/g;
   let match;
 
   while ((match = highlightPattern.exec(rawText)) !== null) {
     rendered += escapeHtml(rawText.slice(lastIndex, match.index));
-    rendered += `<mark>${escapeHtml(match[1])}</mark>`;
+    rendered += escapeHtml(match[1]);
+    rendered += `<mark>${escapeHtml(match[2])}</mark>`;
     lastIndex = match.index + match[0].length;
   }
 
