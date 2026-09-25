@@ -136,6 +136,8 @@ input:focus-visible,
   color: var(--text);
   font-size: 1.4rem;
   font-weight: 600;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .card mark {

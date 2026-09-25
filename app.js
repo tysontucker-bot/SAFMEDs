@@ -10,6 +10,13 @@ const state = {
   preview: null,
 };
 
+const cardPointerState = {
+  pointerId: null,
+  startX: 0,
+  startY: 0,
+  moved: false,
+};
+
 const screens = {
   setup: document.getElementById('setup-screen'),
   practice: document.getElementById('practice-screen'),
@@ -66,12 +73,20 @@ function bindEvents() {
     });
   }
 
-  cardFace.addEventListener('click', flipCard);
+  cardFace.addEventListener('pointerdown', onCardPointerDown);
+  cardFace.addEventListener('pointermove', onCardPointerMove);
+  cardFace.addEventListener('pointerup', onCardPointerUp);
+  cardFace.addEventListener('pointercancel', resetCardPointerState);
+  cardFace.addEventListener('click', onCardFaceClick);
   markCorrectBtn.addEventListener('click', () => markAnswer(true));
   markIncorrectBtn.addEventListener('click', () => markAnswer(false));
   endEarlyBtn.addEventListener('click', () => finishPractice(true));
 
-  previewCardFace.addEventListener('click', flipPreviewCard);
+  previewCardFace.addEventListener('pointerdown', onCardPointerDown);
+  previewCardFace.addEventListener('pointermove', onCardPointerMove);
+  previewCardFace.addEventListener('pointerup', onCardPointerUp);
+  previewCardFace.addEventListener('pointercancel', resetCardPointerState);
+  previewCardFace.addEventListener('click', onPreviewCardFaceClick);
   document.getElementById('preview-previous').addEventListener('click', () => changePreviewCard(-1));
   document.getElementById('preview-next').addEventListener('click', () => changePreviewCard(1));
   document.getElementById('preview-start-practice').addEventListener('click', () => {
@@ -93,6 +108,63 @@ function bindEvents() {
 
   window.addEventListener('keydown', onPracticeHotkeys);
   window.addEventListener('keydown', onPreviewHotkeys);
+}
+
+function onCardPointerDown(event) {
+  if (event.button !== 0) return;
+  cardPointerState.pointerId = event.pointerId;
+  cardPointerState.startX = event.clientX;
+  cardPointerState.startY = event.clientY;
+  cardPointerState.moved = false;
+}
+
+function onCardPointerMove(event) {
+  if (cardPointerState.pointerId !== event.pointerId) return;
+  if (Math.abs(event.clientX - cardPointerState.startX) > 4 || Math.abs(event.clientY - cardPointerState.startY) > 4) {
+    cardPointerState.moved = true;
+  }
+}
+
+function onCardPointerUp(event) {
+  if (cardPointerState.pointerId !== event.pointerId) return;
+  cardPointerState.pointerId = null;
+}
+
+function resetCardPointerState() {
+  cardPointerState.pointerId = null;
+  cardPointerState.startX = 0;
+  cardPointerState.startY = 0;
+  cardPointerState.moved = false;
+}
+
+function onCardFaceClick(event) {
+  if (shouldKeepCardSelection(event, cardFace)) return;
+  flipCard();
+}
+
+function onPreviewCardFaceClick(event) {
+  if (shouldKeepCardSelection(event, previewCardFace)) return;
+  flipPreviewCard();
+}
+
+function shouldKeepCardSelection(event, cardEl) {
+  const shouldKeep = event.detail > 0 && cardPointerState.moved && hasTextSelectionWithin(cardEl);
+  resetCardPointerState();
+  return shouldKeep;
+}
+
+function hasTextSelectionWithin(element) {
+  const selection = window.getSelection?.();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return false;
+
+  for (let i = 0; i < selection.rangeCount; i += 1) {
+    const container = selection.getRangeAt(i).commonAncestorContainer;
+    if (element.contains(container.nodeType === Node.ELEMENT_NODE ? container : container.parentNode)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function renderDefaultDeckOptions() {
