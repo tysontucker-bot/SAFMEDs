@@ -1,7 +1,11 @@
 const STORAGE_KEY = 'safmeds.v1';
 const HISTORY_LIMIT = 20;
 const ROUND_SECONDS = 60;
-const DEFAULT_DECK_FILES = ['spreadsheets/SAFMEDs 1.xlsx'];
+const DEFAULT_DECK_FILES = [
+  'spreadsheets/SAFMEDs 1.xlsx',
+  'spreadsheets/ALL_CHAPTERS_SAFMEDS.xlsx',
+  'spreadsheets/Picture SAFMEDs.xlsx',
+];
 
 const state = {
   decks: loadState(),
