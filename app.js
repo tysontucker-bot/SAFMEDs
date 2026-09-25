@@ -15,6 +15,7 @@ const cardPointerState = {
   startX: 0,
   startY: 0,
   moved: false,
+  suppressNextClick: false,
 };
 
 const screens = {
@@ -112,6 +113,7 @@ function bindEvents() {
 
 function onCardPointerDown(event) {
   if (event.button !== 0) return;
+  cardPointerState.suppressNextClick = false;
   cardPointerState.pointerId = event.pointerId;
   cardPointerState.startX = event.clientX;
   cardPointerState.startY = event.clientY;
@@ -127,7 +129,9 @@ function onCardPointerMove(event) {
 
 function onCardPointerUp(event) {
   if (cardPointerState.pointerId !== event.pointerId) return;
-  cardPointerState.pointerId = null;
+  const shouldSuppress = cardPointerState.moved;
+  resetCardPointerState();
+  cardPointerState.suppressNextClick = shouldSuppress;
 }
 
 function resetCardPointerState() {
@@ -135,6 +139,7 @@ function resetCardPointerState() {
   cardPointerState.startX = 0;
   cardPointerState.startY = 0;
   cardPointerState.moved = false;
+  cardPointerState.suppressNextClick = false;
 }
 
 function onCardFaceClick(event) {
@@ -148,7 +153,7 @@ function onPreviewCardFaceClick(event) {
 }
 
 function shouldKeepCardSelection(event, cardEl) {
-  const shouldKeep = event.detail > 0 && (cardPointerState.moved || hasTextSelectionWithin(cardEl));
+  const shouldKeep = event.detail > 0 && (cardPointerState.suppressNextClick || hasTextSelectionWithin(cardEl));
   resetCardPointerState();
   return shouldKeep;
 }
