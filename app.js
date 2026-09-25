@@ -1200,14 +1200,19 @@ function parseCardImage(line) {
 }
 
 function parseMarkdownImage(line) {
-  const markdownMatch = String(line ?? '').match(/^!\[(.*?)\]\((.+)\)$/u);
-  if (!markdownMatch) return null;
+  const rawLine = String(line ?? '').trim();
+  if (!rawLine.startsWith('![') || !rawLine.endsWith(')')) return null;
 
-  const src = normalizeCardImageSource(extractMarkdownImageSource(markdownMatch[2]), { allowExtensionless: true });
+  const altEndIndex = rawLine.indexOf('](');
+  if (altEndIndex < 2) return null;
+
+  const alt = rawLine.slice(2, altEndIndex);
+  const destination = rawLine.slice(altEndIndex + 2, -1);
+  const src = normalizeCardImageSource(extractMarkdownImageSource(destination), { allowExtensionless: true });
   if (!src) return null;
   return {
     src,
-    alt: markdownMatch[1].trim() || 'Card image',
+    alt: alt.trim() || 'Card image',
   };
 }
 
@@ -1215,12 +1220,10 @@ function extractMarkdownImageSource(destination) {
   const trimmed = String(destination ?? '').trim();
   if (!trimmed) return '';
 
-  if (trimmed.startsWith('<')) {
-    const closingIndex = trimmed.indexOf('>');
-    return closingIndex > 0 ? trimmed.slice(1, closingIndex).trim() : '';
-  }
-
   const withoutTitle = trimmed.replace(/\s+(?:"[^"]*"|'[^']*'|\([^()]*\))\s*$/u, '');
+  if (withoutTitle.startsWith('<') && withoutTitle.endsWith('>')) {
+    return withoutTitle.slice(1, -1).trim();
+  }
   return withoutTitle.trim();
 }
 
@@ -1237,7 +1240,7 @@ function normalizeCardImageSource(source, { allowExtensionless = false } = {}) {
     }
 
     if (protocol === 'data:') {
-      return /^data:image\//iu.test(value) ? value : null;
+      return /^data:image\/(?:apng|avif|bmp|gif|jpe?g|png|webp)(?:;|,)/iu.test(value) ? value : null;
     }
 
     if (allowExtensionless || hasRecognizedImageFileName(resolvedUrl.pathname)) {
