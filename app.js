@@ -452,7 +452,10 @@ function parseSpreadsheetImageFormula(formula) {
   if (!formulaText) return '';
 
   const match = formulaText.match(/^(?:=)?(?:_xlfn\.)?IMAGE\(\s*"((?:[^"]|"")*)"/iu);
-  return match ? match[1].replaceAll('""', '"').trim() : '';
+  if (!match) return '';
+
+  const imageSource = match[1].replaceAll('""', '"').trim();
+  return imageSource ? `![Spreadsheet image](${imageSource})` : '';
 }
 
 function updateDeckCard(deck, index, term, definition) {
@@ -1171,7 +1174,7 @@ function formatCardText(text) {
 function formatCardLine(line) {
   const image = parseCardImage(line);
   if (image) {
-    return `<img class="card-image" src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" />`;
+    return `<img class="card-image" src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" loading="lazy" decoding="async" />`;
   }
   if (!line.trim()) {
     return '<span class="card-text-line card-spacer" aria-hidden="true"></span>';
@@ -1185,7 +1188,7 @@ function parseCardImage(line) {
 
   const markdownMatch = rawLine.match(/^!\[(.*?)\]\((.+)\)$/u);
   if (markdownMatch) {
-    const src = normalizeCardImageSource(markdownMatch[2]);
+    const src = normalizeCardImageSource(markdownMatch[2], { allowExtensionless: true });
     if (!src) return null;
     return {
       src,
@@ -1201,7 +1204,7 @@ function parseCardImage(line) {
   };
 }
 
-function normalizeCardImageSource(source) {
+function normalizeCardImageSource(source, { allowExtensionless = false } = {}) {
   const value = String(source ?? '').trim();
   if (!value) return null;
 
@@ -1216,7 +1219,10 @@ function normalizeCardImageSource(source) {
       return /^data:image\//iu.test(value) ? value : null;
     }
 
-    return /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/iu.test(resolvedUrl.pathname) ? resolvedUrl.toString() : null;
+    if (allowExtensionless || /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/iu.test(resolvedUrl.pathname)) {
+      return resolvedUrl.toString();
+    }
+    return null;
   } catch {
     return null;
   }
