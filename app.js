@@ -151,7 +151,10 @@ function onCardPointerUp(event) {
 }
 
 function onCardPointerCancel(event) {
-  resetCardPointerState(getCardPointerState(event.currentTarget));
+  const pointerState = getCardPointerState(event.currentTarget);
+  const shouldSuppress = pointerState.moved;
+  resetCardPointerTracking(pointerState);
+  pointerState.suppressNextClick = shouldSuppress;
 }
 
 function resetCardPointerTracking(pointerState) {
