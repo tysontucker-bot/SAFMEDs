@@ -671,7 +671,7 @@ function updatePreviewStats() {
 
 function togglePreviewEditor() {
   if (!state.preview) return;
-  if (state.preview.isEditing) {
+  if (state.preview?.isEditing) {
     closePreviewEditor();
     return;
   }
