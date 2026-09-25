@@ -199,6 +199,14 @@ input:focus-visible,
   font: inherit;
 }
 
+.confirm-inline {
+  border-style: dashed;
+}
+
+.confirm-inline p {
+  margin: 0 0 0.75rem;
+}
+
 .timer { font-size: 2rem; font-weight: 700; }
 .timer.urgent { color: var(--incorrect); }
 

@@ -52,6 +52,9 @@ const previewHighlightSelectionBtn = document.getElementById('preview-highlight-
 const previewRemoveHighlightBtn = document.getElementById('preview-remove-highlight');
 const previewSaveEditBtn = document.getElementById('preview-save-edit');
 const previewCancelEditBtn = document.getElementById('preview-cancel-edit');
+const previewDiscardConfirm = document.getElementById('preview-discard-confirm');
+const previewConfirmDiscardBtn = document.getElementById('preview-confirm-discard');
+const previewKeepEditingBtn = document.getElementById('preview-keep-editing');
 
 const resultsTitle = document.getElementById('results-title');
 const headlineRate = document.getElementById('headline-rate');
@@ -99,8 +102,12 @@ function bindEvents() {
   previewRemoveHighlightBtn.addEventListener('click', removeHighlightFromPreviewSelection);
   previewSaveEditBtn.addEventListener('click', savePreviewEdits);
   previewCancelEditBtn.addEventListener('click', () => closePreviewEditor());
+  previewConfirmDiscardBtn.addEventListener('click', confirmDiscardPreviewEdits);
+  previewKeepEditingBtn.addEventListener('click', cancelDiscardPreviewEdits);
   previewEditTerm.addEventListener('focus', () => setPreviewEditField('term'));
   previewEditDefinition.addEventListener('focus', () => setPreviewEditField('definition'));
+  previewEditTerm.addEventListener('input', cancelDiscardPreviewEdits);
+  previewEditDefinition.addEventListener('input', cancelDiscardPreviewEdits);
   document.getElementById('practice-back').addEventListener('click', cancelPractice);
   document.getElementById('results-back').addEventListener('click', () => showScreen('setup'));
   document.getElementById('practice-again').addEventListener('click', () => {
@@ -522,6 +529,7 @@ function openPreview(deckName, returnScreen = 'setup') {
     returnScreen,
     isEditing: false,
     editField: 'term',
+    confirmingDiscard: false,
   };
 
   setMessage(previewEditMessage, '');
@@ -674,6 +682,7 @@ function openPreviewEditor() {
   if (!state.preview || !currentCard) return;
   state.preview.isEditing = true;
   state.preview.editField = state.preview.showingDefinition ? 'definition' : 'term';
+  state.preview.confirmingDiscard = false;
   previewEditTerm.value = currentCard.term;
   previewEditDefinition.value = currentCard.definition;
   setMessage(previewEditMessage, 'Editing is saved locally on this device.', '');
@@ -683,17 +692,22 @@ function openPreviewEditor() {
 
 function closePreviewEditor({ force = false } = {}) {
   if (!state.preview?.isEditing) return true;
-  if (!force && hasPreviewEditChanges() && !window.confirm('Discard unsaved edits to this card?')) {
+  if (!force && hasPreviewEditChanges()) {
+    state.preview.confirmingDiscard = true;
+    syncPreviewEditor();
     return false;
   }
   state.preview.isEditing = false;
+  state.preview.confirmingDiscard = false;
   syncPreviewEditor();
   return true;
 }
 
 function syncPreviewEditor() {
   const isEditing = !!state.preview?.isEditing;
+  const confirmingDiscard = !!state.preview?.confirmingDiscard;
   previewEditPanel.classList.toggle('hidden', !isEditing);
+  previewDiscardConfirm.classList.toggle('hidden', !confirmingDiscard);
   previewEditToggleBtn.textContent = isEditing ? 'Close Editor' : 'Edit Card';
   previewCardFace.classList.toggle('editing', isEditing);
   previewCardFace.setAttribute('aria-disabled', isEditing ? 'true' : 'false');
@@ -722,6 +736,7 @@ function getActivePreviewEditInput() {
 function applyHighlightToPreviewSelection() {
   const input = getActivePreviewEditInput();
   if (!input) return;
+  cancelDiscardPreviewEdits();
   const selection = getTrimmedSelectionRange(input);
   if (!selection) {
     setMessage(previewEditMessage, 'Select text in Term or Definition before highlighting.', 'error');
@@ -742,6 +757,7 @@ function applyHighlightToPreviewSelection() {
 function removeHighlightFromPreviewSelection() {
   const input = getActivePreviewEditInput();
   if (!input) return;
+  cancelDiscardPreviewEdits();
   const selection = getTrimmedSelectionRange(input);
   if (!selection) {
     setMessage(previewEditMessage, 'Select highlighted text before removing the highlight.', 'error');
@@ -763,6 +779,7 @@ function removeHighlightFromPreviewSelection() {
 function savePreviewEdits() {
   const deck = state.decks[state.currentDeckName];
   if (!state.preview || !deck) return;
+  cancelDiscardPreviewEdits();
 
   const term = previewEditTerm.value.trim();
   const definition = previewEditDefinition.value.trim();
@@ -777,6 +794,18 @@ function savePreviewEdits() {
   updatePreviewStats();
   closePreviewEditor({ force: true });
   setMessage(previewEditMessage, 'Saved locally on this device.', 'success');
+}
+
+function confirmDiscardPreviewEdits() {
+  if (!state.preview) return;
+  closePreviewEditor({ force: true });
+  setMessage(previewEditMessage, 'Unsaved edits were discarded.', '');
+}
+
+function cancelDiscardPreviewEdits() {
+  if (!state.preview?.confirmingDiscard) return;
+  state.preview.confirmingDiscard = false;
+  syncPreviewEditor();
 }
 
 function closePreview() {
