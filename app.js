@@ -318,16 +318,17 @@ function saveState() {
 function normalizeDecks(rawDecks) {
   return Object.fromEntries(
     Object.entries(rawDecks).map(([deckKey, rawDeck]) => {
-      const baseCards = cloneCards(rawDeck?.baseCards?.length ? rawDeck.baseCards : rawDeck?.cards || []);
-      const overrides = normalizeOverrides(rawDeck?.overrides);
-      const cards = applyCardOverrides(baseCards, overrides);
+      const hasBaseCards = Array.isArray(rawDeck?.baseCards) && rawDeck.baseCards.length > 0;
+      const baseCards = hasBaseCards ? cloneCards(rawDeck.baseCards) : [];
+      const overrides = hasBaseCards ? normalizeOverrides(rawDeck?.overrides) : {};
+      const cards = hasBaseCards ? applyCardOverrides(baseCards, overrides) : cloneCards(rawDeck?.cards || []);
       return [deckKey, {
         name: rawDeck?.name || deckKey,
         baseCards,
         overrides,
         cards,
         history: Array.isArray(rawDeck?.history) ? rawDeck.history : [],
-        signature: typeof rawDeck?.signature === 'string' ? rawDeck.signature : getDeckSignature(baseCards),
+        signature: typeof rawDeck?.signature === 'string' ? rawDeck.signature : getDeckSignature(baseCards.length ? baseCards : cards),
       }];
     })
   );
@@ -790,9 +791,9 @@ function savePreviewEdits() {
 
   updateDeckCard(deck, state.preview.index, term, definition);
   saveState();
+  closePreviewEditor({ force: true });
   updatePreviewCard();
   updatePreviewStats();
-  closePreviewEditor({ force: true });
   setMessage(previewEditMessage, 'Saved locally on this device.', 'success');
 }
 

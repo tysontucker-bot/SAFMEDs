@@ -183,7 +183,7 @@ input:focus-visible,
   gap: 0.35rem;
 }
 
-.editor-field span {
+.editor-field label {
   font-weight: 600;
 }
 
