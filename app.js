@@ -1186,14 +1186,9 @@ function parseCardImage(line) {
   const rawLine = String(line ?? '').trim();
   if (!rawLine) return null;
 
-  const markdownMatch = rawLine.match(/^!\[(.*?)\]\((.+)\)$/u);
-  if (markdownMatch) {
-    const src = normalizeCardImageSource(markdownMatch[2], { allowExtensionless: true });
-    if (!src) return null;
-    return {
-      src,
-      alt: markdownMatch[1].trim() || 'Card image',
-    };
+  const markdownImage = parseMarkdownImage(rawLine);
+  if (markdownImage) {
+    return markdownImage;
   }
 
   const src = normalizeCardImageSource(rawLine);
@@ -1204,6 +1199,31 @@ function parseCardImage(line) {
   };
 }
 
+function parseMarkdownImage(line) {
+  const markdownMatch = String(line ?? '').match(/^!\[(.*?)\]\((.+)\)$/u);
+  if (!markdownMatch) return null;
+
+  const src = normalizeCardImageSource(extractMarkdownImageSource(markdownMatch[2]), { allowExtensionless: true });
+  if (!src) return null;
+  return {
+    src,
+    alt: markdownMatch[1].trim() || 'Card image',
+  };
+}
+
+function extractMarkdownImageSource(destination) {
+  const trimmed = String(destination ?? '').trim();
+  if (!trimmed) return '';
+
+  if (trimmed.startsWith('<')) {
+    const closingIndex = trimmed.indexOf('>');
+    return closingIndex > 0 ? trimmed.slice(1, closingIndex).trim() : '';
+  }
+
+  const withoutTitle = trimmed.replace(/\s+(?:"[^"]*"|'[^']*'|\([^()]*\))\s*$/u, '');
+  return withoutTitle.trim();
+}
+
 function normalizeCardImageSource(source, { allowExtensionless = false } = {}) {
   const value = String(source ?? '').trim();
   if (!value) return null;
@@ -1211,7 +1231,8 @@ function normalizeCardImageSource(source, { allowExtensionless = false } = {}) {
   try {
     const resolvedUrl = new URL(value, appBaseDirUrl);
     const protocol = resolvedUrl.protocol.toLowerCase();
-    if (!['http:', 'https:', 'data:', 'file:'].includes(protocol)) {
+    const isRelativePath = isAppRelativeImagePath(value);
+    if (!['http:', 'https:', 'data:'].includes(protocol) && !(protocol === 'file:' && isRelativePath)) {
       return null;
     }
 
@@ -1219,13 +1240,31 @@ function normalizeCardImageSource(source, { allowExtensionless = false } = {}) {
       return /^data:image\//iu.test(value) ? value : null;
     }
 
-    if (allowExtensionless || /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/iu.test(resolvedUrl.pathname)) {
+    if (allowExtensionless || hasRecognizedImageFileName(resolvedUrl.pathname)) {
       return resolvedUrl.toString();
     }
     return null;
   } catch {
     return null;
   }
+}
+
+function isAppRelativeImagePath(source) {
+  const value = String(source ?? '').trim();
+  return !!value
+    && !/^[a-z][a-z0-9+.-]*:/iu.test(value)
+    && !value.startsWith('//')
+    && !value.startsWith('/')
+    && !value.startsWith('\\')
+    && !/^[a-z]:[\\/]/iu.test(value);
+}
+
+function hasRecognizedImageFileName(pathname) {
+  const fileName = String(pathname ?? '')
+    .split('/')
+    .filter(Boolean)
+    .pop();
+  return /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/iu.test(fileName || '');
 }
 
 function getCardImageAltText(source) {
