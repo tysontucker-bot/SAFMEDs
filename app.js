@@ -1201,19 +1201,53 @@ function parseCardImage(line) {
 
 function parseMarkdownImage(line) {
   const rawLine = String(line ?? '').trim();
-  if (!rawLine.startsWith('![') || !rawLine.endsWith(')')) return null;
+  if (!rawLine.startsWith('![')) return null;
 
   const altEndIndex = rawLine.indexOf('](');
   if (altEndIndex < 2) return null;
 
   const alt = rawLine.slice(2, altEndIndex);
-  const destination = rawLine.slice(altEndIndex + 2, -1);
+  const destination = parseMarkdownImageDestination(rawLine.slice(altEndIndex + 2));
+  if (!destination) return null;
+
   const src = normalizeCardImageSource(extractMarkdownImageSource(destination), { allowExtensionless: true });
   if (!src) return null;
   return {
     src,
     alt: alt.trim() || 'Card image',
   };
+}
+
+function parseMarkdownImageDestination(text) {
+  const value = String(text ?? '');
+  let depth = 1;
+  let insideAngleBrackets = false;
+  let destination = '';
+
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
+
+    if (!insideAngleBrackets) {
+      if (char === '(') {
+        depth += 1;
+      } else if (char === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          return value.slice(i + 1).trim() ? null : destination;
+        }
+      } else if (char === '<') {
+        insideAngleBrackets = true;
+      }
+    } else if (char === '>') {
+      insideAngleBrackets = false;
+    }
+
+    if (depth > 0) {
+      destination += char;
+    }
+  }
+
+  return null;
 }
 
 function extractMarkdownImageSource(destination) {
@@ -1267,7 +1301,7 @@ function hasRecognizedImageFileName(pathname) {
     .split('/')
     .filter(Boolean)
     .pop();
-  return /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/iu.test(fileName || '');
+  return /\.(?:avif|bmp|gif|jpe?g|png|webp)$/iu.test(fileName || '');
 }
 
 function getCardImageAltText(source) {
