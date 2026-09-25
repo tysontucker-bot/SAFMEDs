@@ -57,8 +57,35 @@
         <div class="controls">
           <button id="preview-previous" type="button" class="secondary">Previous</button>
           <button id="preview-next" type="button" class="secondary">Next</button>
+          <button id="preview-edit-toggle" type="button" class="secondary">Edit Card</button>
           <button id="preview-start-practice" type="button">Start Timed Run</button>
           <button id="preview-back" type="button" class="secondary">Back</button>
+        </div>
+        <p id="preview-edit-message" class="message" aria-live="polite"></p>
+        <div id="preview-edit-panel" class="panel editor-panel hidden" role="region" aria-labelledby="preview-edit-heading">
+          <h3 id="preview-edit-heading">Edit Card</h3>
+          <div class="editor-field">
+            <label for="preview-edit-term">Term</label>
+            <textarea id="preview-edit-term" rows="4" spellcheck="false"></textarea>
+          </div>
+          <div class="editor-field">
+            <label for="preview-edit-definition">Definition</label>
+            <textarea id="preview-edit-definition" rows="4" spellcheck="false"></textarea>
+          </div>
+          <div class="controls">
+            <button id="preview-highlight-selection" type="button">Highlight Selection</button>
+            <button id="preview-remove-highlight" type="button" class="secondary">Remove Highlight</button>
+            <button id="preview-save-edit" type="button">Save Edits</button>
+            <button id="preview-cancel-edit" type="button" class="secondary">Cancel</button>
+          </div>
+          <div id="preview-discard-confirm" class="panel confirm-inline hidden" role="alert" aria-live="assertive">
+            <p>You have unsaved edits for this card.</p>
+            <div class="controls">
+              <button id="preview-confirm-discard" type="button" class="secondary">Discard Changes</button>
+              <button id="preview-keep-editing" type="button">Keep Editing</button>
+            </div>
+          </div>
+          <p class="hint">Select text in either field and use Highlight Selection to wrap it in ==double equals==. Changes are saved locally on this device.</p>
         </div>
         <p class="hint">Review highlighted cards before starting the timer. Shortcuts: Space flip · N / → next · P / ← previous · Enter start timed run</p>
       </section>
