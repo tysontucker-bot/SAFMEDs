@@ -46,7 +46,7 @@ header { margin-bottom: 1rem; }
 header p { color: var(--muted); margin-top: 0.2rem; }
 
 .screen { display: grid; gap: 1rem; }
-.hidden { display: none; }
+.hidden { display: none !important; }
 
 .panel {
   background: var(--panel);
@@ -107,6 +107,11 @@ button.secondary {
   color: var(--text);
 }
 
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 #mark-correct {
   background: var(--correct);
 }
@@ -158,6 +163,36 @@ input:focus-visible,
   display: flex;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.editor-panel {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.editor-panel h3 {
+  margin: 0;
+}
+
+.editor-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.editor-field span {
+  font-weight: 600;
+}
+
+.editor-field textarea {
+  width: 100%;
+  min-height: 7rem;
+  resize: vertical;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
 }
 
 .timer { font-size: 2rem; font-weight: 700; }

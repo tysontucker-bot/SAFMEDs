@@ -39,6 +39,19 @@ const endEarlyBtn = document.getElementById('end-early');
 const previewTitle = document.getElementById('preview-title');
 const previewStats = document.getElementById('preview-stats');
 const previewCardFace = document.getElementById('preview-card-face');
+const previewPreviousBtn = document.getElementById('preview-previous');
+const previewNextBtn = document.getElementById('preview-next');
+const previewEditToggleBtn = document.getElementById('preview-edit-toggle');
+const previewStartPracticeBtn = document.getElementById('preview-start-practice');
+const previewBackBtn = document.getElementById('preview-back');
+const previewEditMessage = document.getElementById('preview-edit-message');
+const previewEditPanel = document.getElementById('preview-edit-panel');
+const previewEditTerm = document.getElementById('preview-edit-term');
+const previewEditDefinition = document.getElementById('preview-edit-definition');
+const previewHighlightSelectionBtn = document.getElementById('preview-highlight-selection');
+const previewRemoveHighlightBtn = document.getElementById('preview-remove-highlight');
+const previewSaveEditBtn = document.getElementById('preview-save-edit');
+const previewCancelEditBtn = document.getElementById('preview-cancel-edit');
 
 const resultsTitle = document.getElementById('results-title');
 const headlineRate = document.getElementById('headline-rate');
@@ -73,12 +86,19 @@ function bindEvents() {
   endEarlyBtn.addEventListener('click', () => finishPractice(true));
 
   bindCardInteractions(previewCardFace, onPreviewCardFaceClick);
-  document.getElementById('preview-previous').addEventListener('click', () => changePreviewCard(-1));
-  document.getElementById('preview-next').addEventListener('click', () => changePreviewCard(1));
-  document.getElementById('preview-start-practice').addEventListener('click', () => {
+  previewPreviousBtn.addEventListener('click', () => changePreviewCard(-1));
+  previewNextBtn.addEventListener('click', () => changePreviewCard(1));
+  previewEditToggleBtn.addEventListener('click', togglePreviewEditor);
+  previewStartPracticeBtn.addEventListener('click', () => {
     if (state.currentDeckName) startPractice(state.currentDeckName);
   });
-  document.getElementById('preview-back').addEventListener('click', closePreview);
+  previewBackBtn.addEventListener('click', closePreview);
+  previewHighlightSelectionBtn.addEventListener('click', applyHighlightToPreviewSelection);
+  previewRemoveHighlightBtn.addEventListener('click', removeHighlightFromPreviewSelection);
+  previewSaveEditBtn.addEventListener('click', savePreviewEdits);
+  previewCancelEditBtn.addEventListener('click', () => closePreviewEditor());
+  previewEditTerm.addEventListener('focus', () => setPreviewEditField('term'));
+  previewEditDefinition.addEventListener('focus', () => setPreviewEditField('definition'));
   document.getElementById('practice-back').addEventListener('click', cancelPractice);
   document.getElementById('results-back').addEventListener('click', () => showScreen('setup'));
   document.getElementById('practice-again').addEventListener('click', () => {
@@ -174,6 +194,7 @@ function onCardFaceClick(event) {
 }
 
 function onPreviewCardFaceClick(event) {
+  if (state.preview?.isEditing) return;
   if (shouldKeepCardSelection(event, previewCardFace)) return;
   flipPreviewCard();
 }
@@ -197,6 +218,36 @@ function hasTextSelectionWithin(element) {
   }
 
   return false;
+}
+
+function getTrimmedSelectionRange(input) {
+  const start = input.selectionStart ?? 0;
+  const end = input.selectionEnd ?? 0;
+  if (end <= start) return null;
+
+  const selectedText = input.value.slice(start, end);
+  const leadingWhitespace = selectedText.match(/^\s*/u)?.[0].length || 0;
+  const trailingWhitespace = selectedText.match(/\s*$/u)?.[0].length || 0;
+  const trimmedStart = start + leadingWhitespace;
+  const trimmedEnd = end - trailingWhitespace;
+  return trimmedEnd > trimmedStart ? { start: trimmedStart, end: trimmedEnd } : null;
+}
+
+function isWrappedInHighlight(value, start, end) {
+  return getSurroundingHighlightRange(value, start, end) !== null;
+}
+
+function getSurroundingHighlightRange(value, start, end) {
+  if (start >= 2 && value.slice(start - 2, start) === '==' && value.slice(end, end + 2) === '==') {
+    return { start: start - 2, end: end + 2 };
+  }
+
+  const selectedText = value.slice(start, end);
+  if (selectedText.startsWith('==') && selectedText.endsWith('==') && selectedText.length > 4) {
+    return { start, end };
+  }
+
+  return null;
 }
 
 function renderDefaultDeckOptions() {
@@ -244,7 +295,7 @@ async function onLoadDefaultDeck(event) {
 function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return parsed && typeof parsed === 'object' ? normalizeDecks(parsed) : {};
   } catch {
     return {};
   }
@@ -254,23 +305,79 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.decks));
 }
 
+function normalizeDecks(rawDecks) {
+  return Object.fromEntries(
+    Object.entries(rawDecks).map(([deckKey, rawDeck]) => {
+      const baseCards = cloneCards(rawDeck?.baseCards?.length ? rawDeck.baseCards : rawDeck?.cards || []);
+      const overrides = normalizeOverrides(rawDeck?.overrides);
+      const cards = applyCardOverrides(baseCards, overrides);
+      return [deckKey, {
+        name: rawDeck?.name || deckKey,
+        baseCards,
+        overrides,
+        cards,
+        history: Array.isArray(rawDeck?.history) ? rawDeck.history : [],
+        signature: typeof rawDeck?.signature === 'string' ? rawDeck.signature : getDeckSignature(baseCards),
+      }];
+    })
+  );
+}
+
+function cloneCards(cards) {
+  return (Array.isArray(cards) ? cards : [])
+    .map((card) => ({
+      term: String(card?.term ?? '').trim(),
+      definition: String(card?.definition ?? '').trim(),
+    }))
+    .filter((card) => card.term && card.definition);
+}
+
+function normalizeOverrides(rawOverrides) {
+  if (!rawOverrides || typeof rawOverrides !== 'object') return {};
+
+  return Object.fromEntries(
+    Object.entries(rawOverrides)
+      .filter(([key]) => /^\d+$/.test(key))
+      .map(([key, card]) => [key, {
+        term: String(card?.term ?? '').trim(),
+        definition: String(card?.definition ?? '').trim(),
+      }])
+      .filter(([, card]) => card.term && card.definition)
+  );
+}
+
+function applyCardOverrides(baseCards, overrides = {}) {
+  return cloneCards(baseCards).map((card, index) => ({
+    term: overrides[index]?.term ?? card.term,
+    definition: overrides[index]?.definition ?? card.definition,
+  }));
+}
+
 function importDeckFromArrayBuffer(fileData, sourceName) {
   const workbook = XLSX.read(fileData, { type: 'array' });
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   if (!firstSheet) throw new Error('No worksheets found in file.');
 
   const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: '' });
-  const cards = parseCards(rows);
-  if (!cards.length) throw new Error('No valid term/definition rows were found.');
+  const baseCards = parseCards(rows);
+  if (!baseCards.length) throw new Error('No valid term/definition rows were found.');
 
   const deckName = getDeckNameFromSource(sourceName);
-  const signature = getDeckSignature(cards);
+  const signature = getDeckSignature(baseCards);
   const previousDeck = state.decks[deckName];
   const previousHistory = previousDeck?.signature === signature ? previousDeck.history || [] : [];
-  state.decks[deckName] = { name: deckName, cards, history: previousHistory, signature };
+  const overrides = previousDeck?.signature === signature ? normalizeOverrides(previousDeck.overrides) : {};
+  state.decks[deckName] = {
+    name: deckName,
+    baseCards,
+    overrides,
+    cards: applyCardOverrides(baseCards, overrides),
+    history: previousHistory,
+    signature,
+  };
   saveState();
   renderDecks();
-  return { deckName, cardCount: cards.length };
+  return { deckName, cardCount: baseCards.length };
 }
 
 function getDeckNameFromSource(sourceName) {
@@ -307,6 +414,31 @@ function parseCards(rows) {
     cards.push({ term, definition });
   }
   return cards;
+}
+
+function updateDeckCard(deck, index, term, definition) {
+  if (!deck) return;
+  if (!Array.isArray(deck.baseCards) || !deck.baseCards.length) {
+    deck.baseCards = cloneCards(deck.cards);
+  }
+  if (!deck.overrides || typeof deck.overrides !== 'object') {
+    deck.overrides = {};
+  }
+
+  const nextCard = {
+    term: String(term ?? '').trim(),
+    definition: String(definition ?? '').trim(),
+  };
+  const baseCard = deck.baseCards[index];
+  if (!baseCard) return;
+
+  if (baseCard.term === nextCard.term && baseCard.definition === nextCard.definition) {
+    delete deck.overrides[index];
+  } else {
+    deck.overrides[index] = nextCard;
+  }
+
+  deck.cards = applyCardOverrides(deck.baseCards, deck.overrides);
 }
 
 function setMessage(target, text, type = '') {
@@ -385,8 +517,12 @@ function openPreview(deckName, returnScreen = 'setup') {
     index: 0,
     showingDefinition: false,
     returnScreen,
+    isEditing: false,
+    editField: 'term',
   };
 
+  setMessage(previewEditMessage, '');
+  syncPreviewEditor();
   previewTitle.textContent = `Preview: ${deckName}`;
   updatePreviewCard();
   updatePreviewStats();
@@ -398,6 +534,7 @@ function startPractice(deckName) {
   if (!deck || !deck.cards.length) return;
 
   if (state.practice?.timerId) clearInterval(state.practice.timerId);
+  setMessage(previewEditMessage, '');
   state.preview = null;
 
   state.currentDeckName = deckName;
@@ -492,7 +629,7 @@ function flipCard() {
 }
 
 function flipPreviewCard() {
-  if (!state.preview) return;
+  if (!state.preview || state.preview.isEditing) return;
   state.preview.showingDefinition = !state.preview.showingDefinition;
   updatePreviewCard();
   updatePreviewStats();
@@ -500,10 +637,11 @@ function flipPreviewCard() {
 
 function changePreviewCard(direction) {
   const deck = state.decks[state.currentDeckName];
-  if (!state.preview || !deck?.cards.length) return;
+  if (!state.preview || state.preview.isEditing || !deck?.cards.length) return;
   const total = deck.cards.length;
   state.preview.index = (state.preview.index + direction + total) % total;
   state.preview.showingDefinition = false;
+  setMessage(previewEditMessage, '');
   updatePreviewCard();
   updatePreviewStats();
 }
@@ -519,12 +657,131 @@ function updatePreviewStats() {
   previewStats.textContent = `Card ${cardNum} of ${deck.cards.length} · ${faceLabel}`;
 }
 
+function togglePreviewEditor() {
+  if (!state.preview) return;
+  if (state.preview.isEditing) {
+    closePreviewEditor();
+    return;
+  }
+  openPreviewEditor();
+}
+
+function openPreviewEditor() {
+  const currentCard = getCurrentPreviewCard();
+  if (!state.preview || !currentCard) return;
+  state.preview.isEditing = true;
+  state.preview.editField = state.preview.showingDefinition ? 'definition' : 'term';
+  previewEditTerm.value = currentCard.term;
+  previewEditDefinition.value = currentCard.definition;
+  setMessage(previewEditMessage, 'Editing is saved locally on this device.', '');
+  syncPreviewEditor();
+  getActivePreviewEditInput()?.focus();
+}
+
+function closePreviewEditor({ force = false } = {}) {
+  if (!state.preview?.isEditing) return true;
+  if (!force && hasPreviewEditChanges() && !window.confirm('Discard unsaved edits to this card?')) {
+    return false;
+  }
+  state.preview.isEditing = false;
+  syncPreviewEditor();
+  return true;
+}
+
+function syncPreviewEditor() {
+  const isEditing = !!state.preview?.isEditing;
+  previewEditPanel.classList.toggle('hidden', !isEditing);
+  previewEditToggleBtn.textContent = isEditing ? 'Close Editor' : 'Edit Card';
+  previewCardFace.disabled = isEditing;
+  previewPreviousBtn.disabled = isEditing;
+  previewNextBtn.disabled = isEditing;
+  previewStartPracticeBtn.disabled = isEditing;
+}
+
+function hasPreviewEditChanges() {
+  const currentCard = getCurrentPreviewCard();
+  if (!state.preview?.isEditing || !currentCard) return false;
+  return previewEditTerm.value !== currentCard.term || previewEditDefinition.value !== currentCard.definition;
+}
+
+function setPreviewEditField(field) {
+  if (!state.preview) return;
+  state.preview.editField = field === 'definition' ? 'definition' : 'term';
+}
+
+function getActivePreviewEditInput() {
+  if (!state.preview) return null;
+  return state.preview.editField === 'definition' ? previewEditDefinition : previewEditTerm;
+}
+
+function applyHighlightToPreviewSelection() {
+  const input = getActivePreviewEditInput();
+  if (!input) return;
+  const selection = getTrimmedSelectionRange(input);
+  if (!selection) {
+    setMessage(previewEditMessage, 'Select text in Term or Definition before highlighting.', 'error');
+    return;
+  }
+
+  if (isWrappedInHighlight(input.value, selection.start, selection.end)) {
+    setMessage(previewEditMessage, 'That text is already highlighted.', 'error');
+    return;
+  }
+
+  input.value = `${input.value.slice(0, selection.start)}==${input.value.slice(selection.start, selection.end)}==${input.value.slice(selection.end)}`;
+  input.focus();
+  input.setSelectionRange(selection.start + 2, selection.end + 2);
+  setMessage(previewEditMessage, 'Highlight markers added. Save edits to keep them on this device.', 'success');
+}
+
+function removeHighlightFromPreviewSelection() {
+  const input = getActivePreviewEditInput();
+  if (!input) return;
+  const selection = getTrimmedSelectionRange(input);
+  if (!selection) {
+    setMessage(previewEditMessage, 'Select highlighted text before removing the highlight.', 'error');
+    return;
+  }
+
+  const surroundingRange = getSurroundingHighlightRange(input.value, selection.start, selection.end);
+  if (!surroundingRange) {
+    setMessage(previewEditMessage, 'The selected text is not currently wrapped in ==highlight markers==.', 'error');
+    return;
+  }
+
+  input.value = `${input.value.slice(0, surroundingRange.start)}${input.value.slice(surroundingRange.start + 2, surroundingRange.end - 2)}${input.value.slice(surroundingRange.end)}`;
+  input.focus();
+  input.setSelectionRange(surroundingRange.start, surroundingRange.end - 4);
+  setMessage(previewEditMessage, 'Highlight markers removed. Save edits to keep the change on this device.', 'success');
+}
+
+function savePreviewEdits() {
+  const deck = state.decks[state.currentDeckName];
+  if (!state.preview || !deck) return;
+
+  const term = previewEditTerm.value.trim();
+  const definition = previewEditDefinition.value.trim();
+  if (!term || !definition) {
+    setMessage(previewEditMessage, 'Term and Definition both need text before saving.', 'error');
+    return;
+  }
+
+  updateDeckCard(deck, state.preview.index, term, definition);
+  saveState();
+  updatePreviewCard();
+  updatePreviewStats();
+  closePreviewEditor({ force: true });
+  setMessage(previewEditMessage, 'Saved locally on this device.', 'success');
+}
+
 function closePreview() {
   if (!state.preview) {
     showScreen('setup');
     return;
   }
+  if (state.preview.isEditing && !closePreviewEditor()) return;
   const { returnScreen } = state.preview;
+  setMessage(previewEditMessage, '');
   state.preview = null;
   if (returnScreen === 'progress' && state.currentDeckName) {
     openProgress(state.currentDeckName);
@@ -774,6 +1031,14 @@ function onPreviewHotkeys(event) {
 
   const key = event.key;
   const code = event.code;
+
+  if (state.preview.isEditing) {
+    if (code === 'Escape') {
+      event.preventDefault();
+      closePreviewEditor();
+    }
+    return;
+  }
 
   if (code === 'Space') {
     event.preventDefault();
