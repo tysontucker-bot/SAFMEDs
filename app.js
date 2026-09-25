@@ -368,8 +368,7 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   if (!firstSheet) throw new Error('No worksheets found in file.');
 
-  const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: '' });
-  const baseCards = parseCards(rows);
+  const baseCards = parseCards(firstSheet);
   if (!baseCards.length) throw new Error('No valid term/definition rows were found.');
 
   const deckName = getDeckNameFromSource(sourceName);
@@ -406,8 +405,18 @@ function getDeckSignature(cards) {
   return `${cards.length}:${hash}`;
 }
 
-function parseCards(rows) {
-  if (!Array.isArray(rows) || !rows.length) return [];
+function parseCards(sheet) {
+  if (!sheet?.['!ref']) return [];
+
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const rows = [];
+  for (let rowIndex = range.s.r; rowIndex <= range.e.r; rowIndex += 1) {
+    rows.push([
+      getSheetCellText(sheet, rowIndex, 0),
+      getSheetCellText(sheet, rowIndex, 1),
+    ]);
+  }
+  if (!rows.length) return [];
 
   let startIndex = 0;
   const firstTerm = String(rows[0]?.[0] ?? '').trim().toLowerCase();
@@ -424,6 +433,29 @@ function parseCards(rows) {
     cards.push({ term, definition });
   }
   return cards;
+}
+
+function getSheetCellText(sheet, rowIndex, colIndex) {
+  const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+  const cell = sheet[cellAddress];
+  if (!cell) return '';
+
+  const imageSource = parseSpreadsheetImageFormula(cell.f);
+  if (imageSource) return imageSource;
+
+  const rawValue = cell.w ?? cell.v ?? '';
+  return String(rawValue ?? '').trim();
+}
+
+function parseSpreadsheetImageFormula(formula) {
+  const formulaText = String(formula ?? '').trim();
+  if (!formulaText) return '';
+
+  const match = formulaText.match(/^(?:=)?(?:_xlfn\.)?IMAGE\(\s*"((?:[^"]|"")*)"/iu);
+  if (!match) return '';
+
+  const imageSource = match[1].replaceAll('""', '"').trim();
+  return imageSource ? `![Spreadsheet image](${imageSource})` : '';
 }
 
 function updateDeckCard(deck, index, term, definition) {
@@ -1135,6 +1167,155 @@ function escapeHtml(text) {
 
 function formatCardText(text) {
   const rawText = String(text ?? '');
+  const lines = rawText.replace(/\r\n?/gu, '\n').split('\n');
+  return lines.map((line) => formatCardLine(line)).join('');
+}
+
+function formatCardLine(line) {
+  const image = parseCardImage(line);
+  if (image) {
+    return `<img class="card-image" src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" loading="lazy" decoding="async" />`;
+  }
+  if (!line.trim()) {
+    return '<span class="card-text-line card-spacer" aria-hidden="true"></span>';
+  }
+  return `<span class="card-text-line">${formatHighlightedText(line)}</span>`;
+}
+
+function parseCardImage(line) {
+  const rawLine = String(line ?? '').trim();
+  if (!rawLine) return null;
+
+  const markdownImage = parseMarkdownImage(rawLine);
+  if (markdownImage) {
+    return markdownImage;
+  }
+
+  const src = normalizeCardImageSource(rawLine);
+  if (!src) return null;
+  return {
+    src,
+    alt: getCardImageAltText(src),
+  };
+}
+
+function parseMarkdownImage(line) {
+  const rawLine = String(line ?? '').trim();
+  if (!rawLine.startsWith('![')) return null;
+
+  const altEndIndex = rawLine.indexOf('](');
+  if (altEndIndex < 2) return null;
+
+  const alt = rawLine.slice(2, altEndIndex);
+  const destination = parseMarkdownImageDestination(rawLine.slice(altEndIndex + 2));
+  if (!destination) return null;
+
+  const src = normalizeCardImageSource(extractMarkdownImageSource(destination), { allowExtensionless: true });
+  if (!src) return null;
+  return {
+    src,
+    alt: alt.trim() || 'Card image',
+  };
+}
+
+function parseMarkdownImageDestination(text) {
+  const value = String(text ?? '');
+  let depth = 1;
+  let insideAngleBrackets = false;
+  let destination = '';
+
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
+
+    if (!insideAngleBrackets) {
+      if (char === '(') {
+        depth += 1;
+      } else if (char === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          return value.slice(i + 1).trim() ? null : destination;
+        }
+      } else if (char === '<') {
+        insideAngleBrackets = true;
+      }
+    } else if (char === '>') {
+      insideAngleBrackets = false;
+    }
+
+    if (depth > 0) {
+      destination += char;
+    }
+  }
+
+  return null;
+}
+
+function extractMarkdownImageSource(destination) {
+  const trimmed = String(destination ?? '').trim();
+  if (!trimmed) return '';
+
+  const withoutTitle = trimmed.replace(/\s+(?:"[^"]*"|'[^']*'|\([^()]*\))\s*$/u, '');
+  if (withoutTitle.startsWith('<') && withoutTitle.endsWith('>')) {
+    return withoutTitle.slice(1, -1).trim();
+  }
+  return withoutTitle.trim();
+}
+
+function normalizeCardImageSource(source, { allowExtensionless = false } = {}) {
+  const value = String(source ?? '').trim();
+  if (!value) return null;
+
+  try {
+    const resolvedUrl = new URL(value, appBaseDirUrl);
+    const protocol = resolvedUrl.protocol.toLowerCase();
+    const isRelativePath = isAppRelativeImagePath(value);
+    if (!['http:', 'https:', 'data:'].includes(protocol) && !(protocol === 'file:' && isRelativePath)) {
+      return null;
+    }
+
+    if (protocol === 'data:') {
+      return /^data:image\/(?:apng|avif|bmp|gif|jpe?g|png|webp)(?:;|,)/iu.test(value) ? value : null;
+    }
+
+    if (allowExtensionless || hasRecognizedImageFileName(resolvedUrl.pathname)) {
+      return resolvedUrl.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isAppRelativeImagePath(source) {
+  const value = String(source ?? '').trim();
+  return !!value
+    && !/^[a-z][a-z0-9+.-]*:/iu.test(value)
+    && !value.startsWith('//')
+    && !value.startsWith('/')
+    && !value.startsWith('\\')
+    && !/^[a-z]:[\\/]/iu.test(value);
+}
+
+function hasRecognizedImageFileName(pathname) {
+  const fileName = String(pathname ?? '')
+    .split('/')
+    .filter(Boolean)
+    .pop();
+  return /\.(?:avif|bmp|gif|jpe?g|png|webp)$/iu.test(fileName || '');
+}
+
+function getCardImageAltText(source) {
+  const fallback = 'Card image';
+  try {
+    const url = new URL(String(source ?? '').trim(), appBaseDirUrl);
+    const fileName = url.pathname.split('/').pop();
+    return fileName ? decodeURIComponent(fileName) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function formatHighlightedText(rawText) {
   let rendered = '';
   let lastIndex = 0;
   const highlightPattern = /(^|[^\p{L}\p{N}_])==(\S(?:[\s\S]*?\S)?)==(?=$|[^\p{L}\p{N}_])/gu;
