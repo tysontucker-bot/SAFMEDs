@@ -1197,7 +1197,7 @@ function parseCardImage(line) {
   if (!src) return null;
   return {
     src,
-    alt: getCardImageAltText(rawLine),
+    alt: getCardImageAltText(src),
   };
 }
 
@@ -1208,7 +1208,7 @@ function normalizeCardImageSource(source) {
   try {
     const resolvedUrl = new URL(value, appBaseDirUrl);
     const protocol = resolvedUrl.protocol.toLowerCase();
-    if (!['http:', 'https:', 'blob:', 'data:', 'file:'].includes(protocol)) {
+    if (!['http:', 'https:', 'data:', 'file:'].includes(protocol)) {
       return null;
     }
 
