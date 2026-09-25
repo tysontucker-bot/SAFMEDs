@@ -694,7 +694,9 @@ function syncPreviewEditor() {
   const isEditing = !!state.preview?.isEditing;
   previewEditPanel.classList.toggle('hidden', !isEditing);
   previewEditToggleBtn.textContent = isEditing ? 'Close Editor' : 'Edit Card';
-  previewCardFace.disabled = isEditing;
+  previewCardFace.classList.toggle('editing', isEditing);
+  previewCardFace.setAttribute('aria-disabled', isEditing ? 'true' : 'false');
+  previewCardFace.tabIndex = isEditing ? -1 : 0;
   previewPreviousBtn.disabled = isEditing;
   previewNextBtn.disabled = isEditing;
   previewStartPracticeBtn.disabled = isEditing;

@@ -62,8 +62,8 @@
           <button id="preview-back" type="button" class="secondary">Back</button>
         </div>
         <p id="preview-edit-message" class="message" aria-live="polite"></p>
-        <div id="preview-edit-panel" class="panel editor-panel hidden">
-          <h3>Edit Card</h3>
+        <div id="preview-edit-panel" class="panel editor-panel hidden" role="region" aria-labelledby="preview-edit-heading">
+          <h3 id="preview-edit-heading">Edit Card</h3>
           <label class="editor-field">
             <span>Term</span>
             <textarea id="preview-edit-term" rows="4" spellcheck="false"></textarea>

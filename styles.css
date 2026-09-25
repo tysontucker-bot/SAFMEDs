@@ -145,6 +145,11 @@ input:focus-visible,
   -webkit-user-select: text;
 }
 
+.card.editing {
+  pointer-events: none;
+  opacity: 0.9;
+}
+
 .card mark {
   background: var(--highlight-bg);
   color: inherit;
