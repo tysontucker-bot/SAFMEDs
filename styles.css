@@ -60,6 +60,21 @@ input[type='file'] {
   margin-top: 0.5rem;
 }
 
+#default-deck-select {
+  display: block;
+  width: min(100%, 20rem);
+  margin-top: 0.5rem;
+}
+
+label[for='default-deck-select'] {
+  display: block;
+  font-weight: 600;
+}
+
+#default-deck-form {
+  margin-top: 0.75rem;
+}
+
 .message { min-height: 1.3em; color: var(--muted); }
 .message.error { color: var(--incorrect); }
 .message.success { color: var(--correct); }
