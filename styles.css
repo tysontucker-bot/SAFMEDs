@@ -146,7 +146,6 @@ input:focus-visible,
 }
 
 .card.editing {
-  pointer-events: none;
   opacity: 0.9;
 }
 

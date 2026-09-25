@@ -147,7 +147,8 @@ function getCardPointerState(cardEl) {
 }
 
 function onCardPointerDown(event) {
-  if (event.pointerType !== 'mouse' || event.button !== 0) return;
+  if (!event.isPrimary) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
   const pointerState = getCardPointerState(event.currentTarget);
   pointerState.suppressNextClick = false;
   pointerState.pointerId = event.pointerId;
@@ -158,7 +159,7 @@ function onCardPointerDown(event) {
 
 function onCardPointerMove(event) {
   const pointerState = getCardPointerState(event.currentTarget);
-  if (event.pointerType !== 'mouse') return;
+  if (!event.isPrimary) return;
   if (pointerState.pointerId !== event.pointerId) return;
   if (Math.abs(event.clientX - pointerState.startX) > 4 || Math.abs(event.clientY - pointerState.startY) > 4) {
     pointerState.moved = true;
@@ -167,7 +168,7 @@ function onCardPointerMove(event) {
 
 function onCardPointerUp(event) {
   const pointerState = getCardPointerState(event.currentTarget);
-  if (event.pointerType !== 'mouse') return;
+  if (!event.isPrimary) return;
   if (pointerState.pointerId !== event.pointerId) return;
   const shouldSuppress = pointerState.moved;
   resetCardPointerTracking(pointerState);
