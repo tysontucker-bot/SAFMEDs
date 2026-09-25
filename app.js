@@ -148,7 +148,7 @@ function onPreviewCardFaceClick(event) {
 }
 
 function shouldKeepCardSelection(event, cardEl) {
-  const shouldKeep = event.detail > 0 && cardPointerState.moved && hasTextSelectionWithin(cardEl);
+  const shouldKeep = event.detail > 0 && (cardPointerState.moved || hasTextSelectionWithin(cardEl));
   resetCardPointerState();
   return shouldKeep;
 }
