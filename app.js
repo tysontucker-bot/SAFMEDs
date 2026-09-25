@@ -318,17 +318,16 @@ function saveState() {
 function normalizeDecks(rawDecks) {
   return Object.fromEntries(
     Object.entries(rawDecks).map(([deckKey, rawDeck]) => {
-      const hasBaseCards = Array.isArray(rawDeck?.baseCards) && rawDeck.baseCards.length > 0;
-      const baseCards = hasBaseCards ? cloneCards(rawDeck.baseCards) : [];
-      const overrides = hasBaseCards ? normalizeOverrides(rawDeck?.overrides) : {};
-      const cards = hasBaseCards ? applyCardOverrides(baseCards, overrides) : cloneCards(rawDeck?.cards || []);
+      const baseCards = cloneCards(rawDeck?.baseCards?.length ? rawDeck.baseCards : rawDeck?.cards || []);
+      const overrides = normalizeOverrides(rawDeck?.overrides);
+      const cards = applyCardOverrides(baseCards, overrides);
       return [deckKey, {
         name: rawDeck?.name || deckKey,
         baseCards,
         overrides,
         cards,
         history: Array.isArray(rawDeck?.history) ? rawDeck.history : [],
-        signature: typeof rawDeck?.signature === 'string' ? rawDeck.signature : getDeckSignature(baseCards.length ? baseCards : cards),
+        signature: typeof rawDeck?.signature === 'string' ? rawDeck.signature : getDeckSignature(baseCards),
       }];
     })
   );
@@ -428,10 +427,7 @@ function parseCards(rows) {
 }
 
 function updateDeckCard(deck, index, term, definition) {
-  if (!deck) return;
-  if (!Array.isArray(deck.baseCards) || !deck.baseCards.length) {
-    deck.baseCards = cloneCards(deck.cards);
-  }
+  if (!deck || !Array.isArray(deck.baseCards) || !deck.baseCards.length) return;
   if (!deck.overrides || typeof deck.overrides !== 'object') {
     deck.overrides = {};
   }
