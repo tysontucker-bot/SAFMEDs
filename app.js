@@ -93,6 +93,8 @@ function bindEvents() {
     if (state.currentDeckName) startPractice(state.currentDeckName);
   });
   previewBackBtn.addEventListener('click', closePreview);
+  previewHighlightSelectionBtn.addEventListener('mousedown', (event) => event.preventDefault());
+  previewRemoveHighlightBtn.addEventListener('mousedown', (event) => event.preventDefault());
   previewHighlightSelectionBtn.addEventListener('click', applyHighlightToPreviewSelection);
   previewRemoveHighlightBtn.addEventListener('click', removeHighlightFromPreviewSelection);
   previewSaveEditBtn.addEventListener('click', savePreviewEdits);
