@@ -368,8 +368,7 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
   const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
   if (!firstSheet) throw new Error('No worksheets found in file.');
 
-  const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, defval: '' });
-  const baseCards = parseCards(rows);
+  const baseCards = parseCards(firstSheet);
   if (!baseCards.length) throw new Error('No valid term/definition rows were found.');
 
   const deckName = getDeckNameFromSource(sourceName);
@@ -406,8 +405,18 @@ function getDeckSignature(cards) {
   return `${cards.length}:${hash}`;
 }
 
-function parseCards(rows) {
-  if (!Array.isArray(rows) || !rows.length) return [];
+function parseCards(sheet) {
+  if (!sheet?.['!ref']) return [];
+
+  const range = XLSX.utils.decode_range(sheet['!ref']);
+  const rows = [];
+  for (let rowIndex = range.s.r; rowIndex <= range.e.r; rowIndex += 1) {
+    rows.push([
+      getSheetCellText(sheet, rowIndex, 0),
+      getSheetCellText(sheet, rowIndex, 1),
+    ]);
+  }
+  if (!rows.length) return [];
 
   let startIndex = 0;
   const firstTerm = String(rows[0]?.[0] ?? '').trim().toLowerCase();
@@ -424,6 +433,26 @@ function parseCards(rows) {
     cards.push({ term, definition });
   }
   return cards;
+}
+
+function getSheetCellText(sheet, rowIndex, colIndex) {
+  const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+  const cell = sheet[cellAddress];
+  if (!cell) return '';
+
+  const imageSource = parseSpreadsheetImageFormula(cell.f);
+  if (imageSource) return imageSource;
+
+  const rawValue = cell.w ?? cell.v ?? '';
+  return String(rawValue ?? '').trim();
+}
+
+function parseSpreadsheetImageFormula(formula) {
+  const formulaText = String(formula ?? '').trim();
+  if (!formulaText) return '';
+
+  const match = formulaText.match(/^(?:=)?(?:_xlfn\.)?IMAGE\(\s*"((?:[^"]|"")*)"/iu);
+  return match ? match[1].replaceAll('""', '"').trim() : '';
 }
 
 function updateDeckCard(deck, index, term, definition) {
@@ -1135,6 +1164,76 @@ function escapeHtml(text) {
 
 function formatCardText(text) {
   const rawText = String(text ?? '');
+  const lines = rawText.replace(/\r\n?/gu, '\n').split('\n');
+  return lines.map((line) => formatCardLine(line)).join('');
+}
+
+function formatCardLine(line) {
+  const image = parseCardImage(line);
+  if (image) {
+    return `<img class="card-image" src="${escapeHtml(image.src)}" alt="${escapeHtml(image.alt)}" />`;
+  }
+  if (!line.trim()) {
+    return '<span class="card-text-line card-spacer" aria-hidden="true"></span>';
+  }
+  return `<span class="card-text-line">${formatHighlightedText(line)}</span>`;
+}
+
+function parseCardImage(line) {
+  const rawLine = String(line ?? '').trim();
+  if (!rawLine) return null;
+
+  const markdownMatch = rawLine.match(/^!\[(.*?)\]\((.+)\)$/u);
+  if (markdownMatch) {
+    const src = normalizeCardImageSource(markdownMatch[2]);
+    if (!src) return null;
+    return {
+      src,
+      alt: markdownMatch[1].trim() || 'Card image',
+    };
+  }
+
+  const src = normalizeCardImageSource(rawLine);
+  if (!src) return null;
+  return {
+    src,
+    alt: getCardImageAltText(rawLine),
+  };
+}
+
+function normalizeCardImageSource(source) {
+  const value = String(source ?? '').trim();
+  if (!value) return null;
+
+  try {
+    const resolvedUrl = new URL(value, appBaseDirUrl);
+    const protocol = resolvedUrl.protocol.toLowerCase();
+    if (!['http:', 'https:', 'blob:', 'data:', 'file:'].includes(protocol)) {
+      return null;
+    }
+
+    if (protocol === 'data:') {
+      return /^data:image\//iu.test(value) ? value : null;
+    }
+
+    return /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/iu.test(resolvedUrl.pathname) ? resolvedUrl.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function getCardImageAltText(source) {
+  const fallback = 'Card image';
+  try {
+    const url = new URL(String(source ?? '').trim(), appBaseDirUrl);
+    const fileName = url.pathname.split('/').pop();
+    return fileName ? decodeURIComponent(fileName) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function formatHighlightedText(rawText) {
   let rendered = '';
   let lastIndex = 0;
   const highlightPattern = /(^|[^\p{L}\p{N}_])==(\S(?:[\s\S]*?\S)?)==(?=$|[^\p{L}\p{N}_])/gu;
