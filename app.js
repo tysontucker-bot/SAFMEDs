@@ -9,14 +9,7 @@ const state = {
   practice: null,
   preview: null,
 };
-
-const cardPointerState = {
-  pointerId: null,
-  startX: 0,
-  startY: 0,
-  moved: false,
-  suppressNextClick: false,
-};
+const cardPointerStates = new WeakMap();
 
 const screens = {
   setup: document.getElementById('setup-screen'),
@@ -74,20 +67,12 @@ function bindEvents() {
     });
   }
 
-  cardFace.addEventListener('pointerdown', onCardPointerDown);
-  cardFace.addEventListener('pointermove', onCardPointerMove);
-  cardFace.addEventListener('pointerup', onCardPointerUp);
-  cardFace.addEventListener('pointercancel', resetCardPointerState);
-  cardFace.addEventListener('click', onCardFaceClick);
+  bindCardInteractions(cardFace, onCardFaceClick);
   markCorrectBtn.addEventListener('click', () => markAnswer(true));
   markIncorrectBtn.addEventListener('click', () => markAnswer(false));
   endEarlyBtn.addEventListener('click', () => finishPractice(true));
 
-  previewCardFace.addEventListener('pointerdown', onCardPointerDown);
-  previewCardFace.addEventListener('pointermove', onCardPointerMove);
-  previewCardFace.addEventListener('pointerup', onCardPointerUp);
-  previewCardFace.addEventListener('pointercancel', resetCardPointerState);
-  previewCardFace.addEventListener('click', onPreviewCardFaceClick);
+  bindCardInteractions(previewCardFace, onPreviewCardFaceClick);
   document.getElementById('preview-previous').addEventListener('click', () => changePreviewCard(-1));
   document.getElementById('preview-next').addEventListener('click', () => changePreviewCard(1));
   document.getElementById('preview-start-practice').addEventListener('click', () => {
@@ -111,39 +96,74 @@ function bindEvents() {
   window.addEventListener('keydown', onPreviewHotkeys);
 }
 
+function bindCardInteractions(cardEl, onClick) {
+  cardPointerStates.set(cardEl, createCardPointerState());
+  cardEl.addEventListener('pointerdown', onCardPointerDown);
+  cardEl.addEventListener('pointermove', onCardPointerMove);
+  cardEl.addEventListener('pointerup', onCardPointerUp);
+  cardEl.addEventListener('pointercancel', onCardPointerCancel);
+  cardEl.addEventListener('click', onClick);
+}
+
+function createCardPointerState() {
+  return {
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    moved: false,
+    suppressNextClick: false,
+  };
+}
+
+function getCardPointerState(cardEl) {
+  let pointerState = cardPointerStates.get(cardEl);
+  if (!pointerState) {
+    pointerState = createCardPointerState();
+    cardPointerStates.set(cardEl, pointerState);
+  }
+  return pointerState;
+}
+
 function onCardPointerDown(event) {
   if (event.button !== 0) return;
-  cardPointerState.suppressNextClick = false;
-  cardPointerState.pointerId = event.pointerId;
-  cardPointerState.startX = event.clientX;
-  cardPointerState.startY = event.clientY;
-  cardPointerState.moved = false;
+  const pointerState = getCardPointerState(event.currentTarget);
+  pointerState.suppressNextClick = false;
+  pointerState.pointerId = event.pointerId;
+  pointerState.startX = event.clientX;
+  pointerState.startY = event.clientY;
+  pointerState.moved = false;
 }
 
 function onCardPointerMove(event) {
-  if (cardPointerState.pointerId !== event.pointerId) return;
-  if (Math.abs(event.clientX - cardPointerState.startX) > 4 || Math.abs(event.clientY - cardPointerState.startY) > 4) {
-    cardPointerState.moved = true;
+  const pointerState = getCardPointerState(event.currentTarget);
+  if (pointerState.pointerId !== event.pointerId) return;
+  if (Math.abs(event.clientX - pointerState.startX) > 4 || Math.abs(event.clientY - pointerState.startY) > 4) {
+    pointerState.moved = true;
   }
 }
 
 function onCardPointerUp(event) {
-  if (cardPointerState.pointerId !== event.pointerId) return;
-  const shouldSuppress = cardPointerState.moved;
-  resetCardPointerTracking();
-  cardPointerState.suppressNextClick = shouldSuppress;
+  const pointerState = getCardPointerState(event.currentTarget);
+  if (pointerState.pointerId !== event.pointerId) return;
+  const shouldSuppress = pointerState.moved;
+  resetCardPointerTracking(pointerState);
+  pointerState.suppressNextClick = shouldSuppress;
 }
 
-function resetCardPointerTracking() {
-  cardPointerState.pointerId = null;
-  cardPointerState.startX = 0;
-  cardPointerState.startY = 0;
-  cardPointerState.moved = false;
+function onCardPointerCancel(event) {
+  resetCardPointerState(getCardPointerState(event.currentTarget));
 }
 
-function resetCardPointerState() {
-  resetCardPointerTracking();
-  cardPointerState.suppressNextClick = false;
+function resetCardPointerTracking(pointerState) {
+  pointerState.pointerId = null;
+  pointerState.startX = 0;
+  pointerState.startY = 0;
+  pointerState.moved = false;
+}
+
+function resetCardPointerState(pointerState) {
+  resetCardPointerTracking(pointerState);
+  pointerState.suppressNextClick = false;
 }
 
 function onCardFaceClick(event) {
@@ -157,8 +177,9 @@ function onPreviewCardFaceClick(event) {
 }
 
 function shouldKeepCardSelection(event, cardEl) {
-  const shouldKeep = event.detail > 0 && (cardPointerState.suppressNextClick || hasTextSelectionWithin(cardEl));
-  resetCardPointerState();
+  const pointerState = getCardPointerState(cardEl);
+  const shouldKeep = hasTextSelectionWithin(cardEl) || (event.detail > 0 && pointerState.suppressNextClick);
+  resetCardPointerState(pointerState);
   return shouldKeep;
 }
 
