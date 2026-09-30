@@ -331,10 +331,19 @@ function normalizeDecks(rawDecks) {
         overrides,
         cards,
         history: Array.isArray(rawDeck?.history) ? rawDeck.history : [],
+        totalCorrect: getStoredAnswerTotal(rawDeck, 'totalCorrect', 'correct'),
+        totalIncorrect: getStoredAnswerTotal(rawDeck, 'totalIncorrect', 'incorrect'),
         signature: typeof rawDeck?.signature === 'string' ? rawDeck.signature : getDeckSignature(baseCards),
       }];
     })
   );
+}
+
+function getStoredAnswerTotal(deck, totalKey, historyKey) {
+  const storedTotal = Number(deck?.[totalKey]);
+  if (Number.isFinite(storedTotal) && storedTotal >= 0) return storedTotal;
+  return (Array.isArray(deck?.history) ? deck.history : [])
+    .reduce((total, entry) => total + Math.max(0, Number(entry?.[historyKey]) || 0), 0);
 }
 
 function cloneCards(cards) {
@@ -386,6 +395,12 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
     overrides,
     cards: applyCardOverrides(baseCards, overrides),
     history: previousHistory,
+    totalCorrect: previousDeck?.signature === signature
+      ? getStoredAnswerTotal(previousDeck, 'totalCorrect', 'correct')
+      : 0,
+    totalIncorrect: previousDeck?.signature === signature
+      ? getStoredAnswerTotal(previousDeck, 'totalIncorrect', 'incorrect')
+      : 0,
     signature,
   };
   saveState();
@@ -509,7 +524,7 @@ function renderDecks() {
 
     const meta = document.createElement('div');
     meta.className = 'deck-meta';
-    meta.innerHTML = `<strong>${escapeHtml(deck.name)}</strong><span>${deck.cards.length} cards · ${deck.history?.length || 0} timings</span>`;
+    meta.innerHTML = `<strong>${escapeHtml(deck.name)}</strong><span>${deck.cards.length} cards · ${deck.history?.length || 0} timings · ${deck.totalCorrect || 0} correct · ${deck.totalIncorrect || 0} incorrect</span>`;
 
     const actions = document.createElement('div');
     actions.className = 'controls';
@@ -894,6 +909,8 @@ function finishPractice(endedEarly) {
   };
 
   const deck = state.decks[state.currentDeckName];
+  deck.totalCorrect = getStoredAnswerTotal(deck, 'totalCorrect', 'correct') + correct;
+  deck.totalIncorrect = getStoredAnswerTotal(deck, 'totalIncorrect', 'incorrect') + incorrect;
   deck.history = [entry, ...(deck.history || [])].slice(0, HISTORY_LIMIT);
   saveState();
 
