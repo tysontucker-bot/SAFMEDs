@@ -71,6 +71,7 @@ const progressTitle = document.getElementById('progress-title');
 const progressChart = document.getElementById('progress-chart');
 const progressChartEmpty = document.getElementById('progress-chart-empty');
 const progressHistory = document.getElementById('progress-history');
+const progressIncorrectCards = document.getElementById('progress-incorrect-cards');
 
 bindEvents();
 renderDefaultDeckOptions();
@@ -331,6 +332,7 @@ function normalizeDecks(rawDecks) {
         overrides,
         cards,
         history: Array.isArray(rawDeck?.history) ? rawDeck.history : [],
+        cardStats: normalizeCardStats(rawDeck?.cardStats, cards.length),
         totalCorrect: getStoredAnswerTotal(rawDeck, 'totalCorrect', 'correct'),
         totalIncorrect: getStoredAnswerTotal(rawDeck, 'totalIncorrect', 'incorrect'),
         signature: typeof rawDeck?.signature === 'string' ? rawDeck.signature : getDeckSignature(baseCards),
@@ -344,6 +346,16 @@ function getStoredAnswerTotal(deck, totalKey, historyKey) {
   if (Number.isFinite(storedTotal) && storedTotal >= 0) return storedTotal;
   return (Array.isArray(deck?.history) ? deck.history : [])
     .reduce((total, entry) => total + Math.max(0, Number(entry?.[historyKey]) || 0), 0);
+}
+
+function normalizeCardStats(rawStats, cardCount) {
+  return Array.from({ length: cardCount }, (_, index) => {
+    const stats = Array.isArray(rawStats) ? rawStats[index] : null;
+    return {
+      correct: Math.max(0, Number(stats?.correct) || 0),
+      incorrect: Math.max(0, Number(stats?.incorrect) || 0),
+    };
+  });
 }
 
 function cloneCards(cards) {
@@ -395,6 +407,9 @@ function importDeckFromArrayBuffer(fileData, sourceName) {
     overrides,
     cards: applyCardOverrides(baseCards, overrides),
     history: previousHistory,
+    cardStats: previousDeck?.signature === signature
+      ? normalizeCardStats(previousDeck.cardStats, baseCards.length)
+      : normalizeCardStats([], baseCards.length),
     totalCorrect: previousDeck?.signature === signature
       ? getStoredAnswerTotal(previousDeck, 'totalCorrect', 'correct')
       : 0,
@@ -563,6 +578,7 @@ function openProgress(deckName) {
   progressTitle.textContent = `Progress: ${deckName}`;
   renderHistoryTable(progressHistory, deck.history || []);
   renderChart(progressChart, progressChartEmpty, deck.history || []);
+  renderIncorrectCards(progressIncorrectCards, deck);
   showScreen('progress');
 }
 
@@ -604,6 +620,7 @@ function startPractice(deckName) {
     showingDefinition: false,
     correct: 0,
     incorrect: 0,
+    cardResults: {},
     seen: 0,
     startAt: Date.now(),
     endsAt: Date.now() + ROUND_SECONDS * 1000,
@@ -875,6 +892,10 @@ function closePreview() {
 function markAnswer(isCorrect) {
   if (!state.practice || state.practice.finished) return;
   const currentCard = getCurrentCard();
+  const cardIndex = state.decks[state.currentDeckName].cards.indexOf(currentCard);
+  const cardResult = state.practice.cardResults[cardIndex] || { correct: 0, incorrect: 0 };
+  cardResult[isCorrect ? 'correct' : 'incorrect'] += 1;
+  state.practice.cardResults[cardIndex] = cardResult;
   if (isCorrect) state.practice.correct += 1;
   else state.practice.incorrect += 1;
 
@@ -909,6 +930,11 @@ function finishPractice(endedEarly) {
   };
 
   const deck = state.decks[state.currentDeckName];
+  deck.cardStats = normalizeCardStats(deck.cardStats, deck.cards.length);
+  Object.entries(state.practice.cardResults).forEach(([index, result]) => {
+    deck.cardStats[index].correct += result.correct;
+    deck.cardStats[index].incorrect += result.incorrect;
+  });
   deck.totalCorrect = getStoredAnswerTotal(deck, 'totalCorrect', 'correct') + correct;
   deck.totalIncorrect = getStoredAnswerTotal(deck, 'totalIncorrect', 'incorrect') + incorrect;
   deck.history = [entry, ...(deck.history || [])].slice(0, HISTORY_LIMIT);
@@ -950,6 +976,26 @@ function renderHistoryTable(target, history) {
         <td>${Number(row.incorrectPerMin).toFixed(1)}</td>
       </tr>`;
     })
+    .join('');
+}
+
+function renderIncorrectCards(target, deck) {
+  const incorrectCards = deck.cards
+    .map((card, index) => ({ card, stats: deck.cardStats?.[index] || { correct: 0, incorrect: 0 } }))
+    .filter(({ stats }) => stats.incorrect > 0)
+    .sort((a, b) => b.stats.incorrect - a.stats.incorrect || b.stats.incorrect / (b.stats.correct + b.stats.incorrect) - a.stats.incorrect / (a.stats.correct + a.stats.incorrect));
+
+  if (!incorrectCards.length) {
+    target.innerHTML = '<tr><td colspan="3" class="empty">No incorrect answers recorded yet.</td></tr>';
+    return;
+  }
+
+  target.innerHTML = incorrectCards
+    .map(({ card, stats }) => `<tr>
+      <td>${escapeHtml(card.term)}</td>
+      <td>${stats.incorrect}</td>
+      <td>${stats.correct + stats.incorrect}</td>
+    </tr>`)
     .join('');
 }
 
