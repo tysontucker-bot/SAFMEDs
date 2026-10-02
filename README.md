@@ -10,7 +10,7 @@ A fully client-side SAFMEDs flashcard drill app.
 - Mark cards correct/incorrect and track per-minute rates
 - Automatic results history (most recent 20 timings per deck)
 - Progress chart with correct/min and incorrect/min trend lines
-- Frequently incorrect questions in each deck's progress view
+- Frequently incorrect terms and definitions in each deck's progress view
 - Local-only storage via `localStorage` (no backend)
 - Highlight text on cards with `==highlighted text==`
 - Render image cards from direct image URLs/paths, Markdown image lines, and spreadsheet `IMAGE("...")` formulas

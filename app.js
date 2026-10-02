@@ -986,13 +986,14 @@ function renderIncorrectCards(target, deck) {
     .sort((a, b) => b.stats.incorrect - a.stats.incorrect || b.stats.incorrect / (b.stats.correct + b.stats.incorrect) - a.stats.incorrect / (a.stats.correct + a.stats.incorrect));
 
   if (!incorrectCards.length) {
-    target.innerHTML = '<tr><td colspan="3" class="empty">No incorrect answers recorded yet.</td></tr>';
+    target.innerHTML = '<tr><td colspan="4" class="empty">No incorrect answers recorded yet.</td></tr>';
     return;
   }
 
   target.innerHTML = incorrectCards
     .map(({ card, stats }) => `<tr>
       <td>${escapeHtml(card.term)}</td>
+      <td>${escapeHtml(card.definition)}</td>
       <td>${stats.incorrect}</td>
       <td>${stats.correct + stats.incorrect}</td>
     </tr>`)
