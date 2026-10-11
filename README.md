@@ -8,7 +8,8 @@ A fully client-side SAFMEDs flashcard drill app.
 - Practice in shuffled 60-second timings with keyboard shortcuts
 - Preview cards before starting a timed run
 - Mark cards correct/incorrect and track per-minute rates
-- Automatic results history (most recent 20 timings per deck)
+- Automatic results history for all timings
+- Download all saved timing history across decks as a CSV file
 - Progress chart with correct/min and incorrect/min trend lines
 - Frequently incorrect terms and definitions in each deck's progress view
 - Local-only storage via `localStorage` (no backend)
