@@ -1,5 +1,4 @@
 const STORAGE_KEY = 'safmeds.v1';
-const HISTORY_LIMIT = 20;
 const ROUND_SECONDS = 60;
 const DEFAULT_DECK_FILES = [
   'spreadsheets/SAFMEDs 1.xlsx',
@@ -24,6 +23,7 @@ const screens = {
 };
 
 const deckList = document.getElementById('deck-list');
+const downloadAllHistoryBtn = document.getElementById('download-all-history');
 const defaultDeckSelect = document.getElementById('default-deck-select');
 const defaultDeckForm = document.getElementById('default-deck-form');
 const loadDefaultDeckBtn = document.getElementById('load-default-deck');
@@ -87,6 +87,7 @@ function bindEvents() {
       defaultDeckSelect.setAttribute('aria-invalid', 'false');
     });
   }
+  downloadAllHistoryBtn.addEventListener('click', downloadAllHistory);
 
   bindCardInteractions(cardFace, onCardFaceClick);
   markCorrectBtn.addEventListener('click', () => markAnswer(true));
@@ -522,6 +523,7 @@ function setMessage(target, text, type = '') {
 
 function renderDecks() {
   const names = Object.keys(state.decks).sort((a, b) => a.localeCompare(b));
+  downloadAllHistoryBtn.disabled = !names.some((name) => state.decks[name].history?.length);
   if (!names.length) {
     deckList.innerHTML = '<p class="empty">No decks yet. Load a spreadsheet to begin.</p>';
     return;
@@ -553,6 +555,43 @@ function renderDecks() {
     row.append(meta, actions);
     deckList.append(row);
   }
+}
+
+function downloadAllHistory() {
+  const historyRows = Object.values(state.decks)
+    .flatMap((deck) => (deck.history || []).map((entry) => ({
+      deck: deck.name,
+      ...entry,
+    })))
+    .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  if (!historyRows.length) return;
+
+  const rows = [
+    ['Deck', 'Date', 'Correct', 'Incorrect', 'Correct/Min', 'Incorrect/Min'],
+    ...historyRows.map((entry) => [
+      entry.deck,
+      entry.date,
+      Math.max(0, Number(entry.correct) || 0),
+      Math.max(0, Number(entry.incorrect) || 0),
+      (Number(entry.correctPerMin) || 0).toFixed(1),
+      (Number(entry.incorrectPerMin) || 0).toFixed(1),
+    ]),
+  ];
+  const csv = `\uFEFF${rows.map((row) => row.map(escapeCsvCell).join(',')).join('\r\n')}`;
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `safmeds-history-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escapeCsvCell(value) {
+  let text = String(value ?? '');
+  if (/^[\t\r ]*[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 function createButton(text, onClick, extraClass = '') {
@@ -937,7 +976,7 @@ function finishPractice(endedEarly) {
   });
   deck.totalCorrect = getStoredAnswerTotal(deck, 'totalCorrect', 'correct') + correct;
   deck.totalIncorrect = getStoredAnswerTotal(deck, 'totalIncorrect', 'incorrect') + incorrect;
-  deck.history = [entry, ...(deck.history || [])].slice(0, HISTORY_LIMIT);
+  deck.history = [entry, ...(deck.history || [])];
   saveState();
 
   showResults(entry, state.practice.seen, endedEarly ? elapsed : ROUND_SECONDS);
